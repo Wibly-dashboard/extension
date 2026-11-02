@@ -42,8 +42,19 @@ export const BottomNavigator = () => {
                 },
               },
             }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{
+              scale: 1.15,
+              y: -10,
+              transition: {
+                type: "spring",
+                stiffness: 400,
+                damping: 10,
+              },
+            }}
+            whileTap={{
+              scale: 0.9,
+              y: 0,
+            }}
           />
         ))}
       </section>
