@@ -5,7 +5,7 @@ export const DigitalClock = () => {
   const dayOfWeek = daysOfWeek[new Date().getDay()];
 
   return (
-    <div className="flex flex-col items-center justify-center gap-2 text-white w-80">
+    <div className="flex flex-col items-center justify-center gap-2 text-white">
       <span className="text-[50px] font-bold">{time}</span>
 
       <span className="text-[20px] font-medium">
