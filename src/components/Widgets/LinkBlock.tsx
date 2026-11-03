@@ -3,7 +3,7 @@ const TestLinkImage =
 
 export const LinkBlock = () => {
   return (
-    <div className="flex h-[80px] w-fit items-center justify-center">
+    <div className="flex w-fit items-center justify-center">
       <img
         src={TestLinkImage}
         alt="test"
