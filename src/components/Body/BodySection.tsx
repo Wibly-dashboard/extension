@@ -22,6 +22,8 @@ type Widget = {
 
 type WidgetItemProps = {
   widget: Widget;
+  isDragging: boolean;
+  onStart: (id: string) => void;
   onStop: (id: string, data: DraggableData, startPosition: Position) => void;
 };
 
@@ -82,7 +84,12 @@ const getBoundedPosition = (
   };
 };
 
-const WidgetItem = ({ widget, onStop }: WidgetItemProps) => {
+const WidgetItem = ({
+  widget,
+  isDragging,
+  onStart,
+  onStop,
+}: WidgetItemProps) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const startPosition = useRef(widget.position);
 
@@ -94,6 +101,7 @@ const WidgetItem = ({ widget, onStop }: WidgetItemProps) => {
       handle=".widget-drag-handle"
       onStart={() => {
         startPosition.current = widget.position;
+        onStart(widget.id);
       }}
       onStop={(_, data) => {
         onStop(widget.id, data, startPosition.current);
@@ -102,7 +110,7 @@ const WidgetItem = ({ widget, onStop }: WidgetItemProps) => {
       <div
         ref={nodeRef}
         id={`widget-${widget.id}`}
-        className="absolute left-0 top-0 w-fit"
+        className={`absolute left-0 top-0 w-fit ${isDragging ? "z-50" : "z-0"}`}
       >
         <div className="widget-drag-handle cursor-grab rounded-xl p-4 active:cursor-grabbing">
           {widget.component}
@@ -114,6 +122,7 @@ const WidgetItem = ({ widget, onStop }: WidgetItemProps) => {
 
 export const BodySection = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const [widgets, setWidgets] = useState<Widget[]>(() => {
     try {
@@ -250,7 +259,16 @@ export const BodySection = () => {
       className="relative min-h-[500px] w-full flex-1 overflow-hidden"
     >
       {widgets.map((widget) => (
-        <WidgetItem key={widget.id} widget={widget} onStop={handleStop} />
+        <WidgetItem
+          key={widget.id}
+          widget={widget}
+          isDragging={draggingId === widget.id}
+          onStart={setDraggingId}
+          onStop={(id, data, position) => {
+            handleStop(id, data, position);
+            setDraggingId(null);
+          }}
+        />
       ))}
     </div>
   );
