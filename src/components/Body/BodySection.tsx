@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import Draggable, { type DraggableData } from "react-draggable";
-import { TestBlock } from "../Widgets/TestBlock";
 import { DigitalClock } from "../Widgets/DigitalClock";
 import { LinkBlock } from "../Widgets/LinkBlock";
 
@@ -17,7 +16,7 @@ type Rect = Position & {
 type Widget = {
   id: string;
   component: React.ReactNode;
-  position: Position;
+  position: Position; // 초기 위치를 저장하는 position
 };
 
 type WidgetItemProps = {
@@ -27,41 +26,49 @@ type WidgetItemProps = {
   onStop: (id: string, data: DraggableData, startPosition: Position) => void;
 };
 
-const GRID_SIZE = 20;
-const WIDGET_GAP = 5;
+const GRID_SIZE = 10; // 그리드 크기 정의
+const WIDGET_GAP = 2; // 위젯 간의 간격을 정의
 const STORAGE_KEY = "dashboard-widgets";
 
 const initialWidgets: Widget[] = [
+  // 초기 위젯 배열
+  // position: 위젯의 초기 위치
   {
     id: "clock",
     component: <DigitalClock />,
     position: { x: 0, y: 0 },
   },
   {
-    id: "test",
-    component: <TestBlock />,
-    position: { x: 300, y: 0 },
+    id: "linkBlock",
+    component: <LinkBlock />,
+    position: { x: 0, y: 300 },
   },
   {
-    id: "linkBlock",
+    id: "linkBlock2",
     component: <LinkBlock />,
     position: { x: 0, y: 300 },
   },
 ];
 
-const snapPosition = (value: number) =>
-  Math.round(value / GRID_SIZE) * GRID_SIZE;
+const snapPosition = (value: number, size: number) => {
+  // 스냅 위치 계산
+  const center = value + size / 2;
+  const snappedCenter = Math.round(center / GRID_SIZE) * GRID_SIZE;
 
-const isColliding = (a: Rect, b: Rect) => {
-  return (
-    a.x < b.x + b.width + WIDGET_GAP &&
-    a.x + a.width + WIDGET_GAP > b.x &&
-    a.y < b.y + b.height + WIDGET_GAP &&
-    a.y + a.height + WIDGET_GAP > b.y
-  );
+  return snappedCenter - size / 2;
 };
 
+const isColliding = (a: Rect, b: Rect) => {
+  // 충돌 여부 확인
+  return (
+    a.x < b.x + b.width + WIDGET_GAP &&
+    a.x + a.width > b.x - WIDGET_GAP &&
+    a.y < b.y + b.height + WIDGET_GAP &&
+    a.y + a.height > b.y - WIDGET_GAP
+  );
+};
 const getMaxPosition = (
+  // 최대 위치 계산
   container: HTMLElement,
   node: HTMLElement,
 ): Position => {
@@ -72,6 +79,7 @@ const getMaxPosition = (
 };
 
 const getBoundedPosition = (
+  // 경계 내 위치 계산
   position: Position,
   container: HTMLElement,
   node: HTMLElement,
@@ -79,12 +87,16 @@ const getBoundedPosition = (
   const max = getMaxPosition(container, node);
 
   return {
-    x: Math.min(Math.max(0, snapPosition(position.x)), max.x),
-    y: Math.min(Math.max(0, snapPosition(position.y)), max.y),
+    x: Math.min(Math.max(0, snapPosition(position.x, node.offsetWidth)), max.x),
+    y: Math.min(
+      Math.max(0, snapPosition(position.y, node.offsetHeight)),
+      max.y,
+    ),
   };
 };
 
 const WidgetItem = ({
+  // 개별 위젯 아이템 컴포넌트
   widget,
   isDragging,
   onStart,
@@ -112,7 +124,7 @@ const WidgetItem = ({
         id={`widget-${widget.id}`}
         className={`absolute left-0 top-0 w-fit ${isDragging ? "z-50" : "z-0"}`}
       >
-        <div className="widget-drag-handle cursor-grab rounded-xl p-4 active:cursor-grabbing">
+        <div className="widget-drag-handle cursor-grab rounded-xl active:cursor-grabbing">
           {widget.component}
         </div>
       </div>
@@ -142,6 +154,7 @@ export const BodySection = () => {
   });
 
   const checkCollision = (id: string, position: Position) => {
+    // 충돌 체크
     const currentNode = document.getElementById(`widget-${id}`);
 
     if (!currentNode) return false;
@@ -170,6 +183,7 @@ export const BodySection = () => {
   };
 
   const handleStop = (
+    // 드래그 종료 시 위치 처리
     id: string,
     data: DraggableData,
     lastPosition: Position,
