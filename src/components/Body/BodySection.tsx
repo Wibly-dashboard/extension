@@ -25,7 +25,7 @@ type WidgetItemProps = {
   onStop: (id: string, data: DraggableData, startPosition: Position) => void;
 };
 
-const GRID_SIZE = 50;
+const GRID_SIZE = 20;
 const WIDGET_GAP = 5;
 const STORAGE_KEY = "dashboard-widgets";
 
