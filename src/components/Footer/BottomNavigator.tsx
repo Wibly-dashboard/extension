@@ -6,7 +6,7 @@ const ICON_URL =
 export const BottomNavigator = () => {
   return (
     <motion.div
-      className="flex h-[100px] w-fit items-center justify-center rounded-[20px] px-2.5 glass"
+      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-2.5 glass"
       initial="hidden"
       animate="visible"
       variants={{
@@ -19,12 +19,12 @@ export const BottomNavigator = () => {
       }}
     >
       <section className="flex gap-5">
-        {Array.from({ length: 9 }).map((_, index) => (
+        {Array.from({ length: 6 }).map((_, index) => (
           <motion.img
             key={index}
             src={ICON_URL}
             alt={`Navigation ${index + 1}`}
-            className="h-20 w-20 cursor-pointer rounded-[20px] object-cover"
+            className="h-15 w-15 cursor-pointer rounded-[10px] object-cover"
             variants={{
               hidden: {
                 opacity: 0,
