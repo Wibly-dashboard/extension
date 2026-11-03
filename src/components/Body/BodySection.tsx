@@ -133,10 +133,11 @@ const WidgetItem = ({
 };
 
 export const BodySection = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null); // 드래그 가능한 영역의 참조
+  const [draggingId, setDraggingId] = useState<string | null>(null); // 현재 드래그 중인 위젯의 ID 상태
 
   const [widgets, setWidgets] = useState<Widget[]>(() => {
+    // 위젯 상태 초기화
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
 
@@ -200,6 +201,7 @@ export const BodySection = () => {
     );
 
     if (checkCollision(id, nextPosition)) {
+      // 충돌 시 마지막 위치로 되돌리기
       const fallbackPosition = getBoundedPosition(
         lastPosition,
         container,
@@ -233,6 +235,7 @@ export const BodySection = () => {
   };
 
   useEffect(() => {
+    // 드래그 가능한 영역의 크기 변경 시 위젯 위치 조정
     const container = containerRef.current;
 
     if (!container) return;
@@ -260,6 +263,7 @@ export const BodySection = () => {
   }, []);
 
   useEffect(() => {
+    // 위젯 위치 변경 시 localStorage에 저장
     const positions = Object.fromEntries(
       widgets.map((widget) => [widget.id, widget.position]),
     );
