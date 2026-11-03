@@ -40,7 +40,7 @@ const hoverLinkAnimation = {
 export const BottomNavigator = () => {
   return (
     <motion.div
-      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-[20px] glass"
+      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-[25px] glass"
       initial="hidden"
       animate="visible"
       variants={{
@@ -52,7 +52,7 @@ export const BottomNavigator = () => {
         },
       }}
     >
-      <section className="flex gap-5">
+      <section className="flex gap-7">
         {ICON_URL.map((url, index) => (
           <motion.img
             key={index}
