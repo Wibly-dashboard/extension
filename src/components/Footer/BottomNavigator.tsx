@@ -6,7 +6,6 @@ const ICON_URL = [
   "https://assets.icon.museum/icons/32434c98-7fd4-437e-994e-7a73155a0012.png",
   "https://assets.icon.museum/icons/9851e99f-2d59-46d4-8945-a5439897dc22.png",
   "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Netflix_icon.svg/3840px-Netflix_icon.svg.png",
-  "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/github-white-icon.png",
 ];
 
 const itemVariants = {
@@ -40,7 +39,7 @@ const hoverLinkAnimation = {
 export const BottomNavigator = () => {
   return (
     <motion.div
-      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-[25px] glass"
+      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-[25px] glass bg-[#C4C4C4]/40" // 설정에서 배경 색상 변경 가능하게 만들기
       initial="hidden"
       animate="visible"
       variants={{
