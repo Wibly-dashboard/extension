@@ -39,35 +39,49 @@ const STORAGE_KEY = "dashboard-widgets";
 const initialWidgets: Widget[] = [
   // 초기 위젯 배열
   // position: 위젯의 초기 위치
+
   {
     id: "clock",
     component: <DigitalClock />,
-    position: { x: 0, y: 0 },
+    position: { x: 1065, y: 7.5 },
   },
   {
     id: "todo",
     component: <TodoWidget />,
-    position: { x: 0, y: 300 },
+    position: { x: 2145, y: 260 },
   },
-  ...MOCK_LINKS.map((link, index) => ({
-    id: `link-${index}`,
-    component: <LinkBlock imageUrl={link.imageUrl} href={link.href} />,
-    position: { x: 0, y: 600 + index * 100 },
-  })),
+  ...MOCK_LINKS.map((link, index) => {
+    const positions = [
+      { x: 280, y: 900 },
+      { x: 140, y: 900 },
+      { x: 70, y: 900 },
+      { x: 0, y: 900 },
+      { x: 350, y: 900 },
+      { x: 210, y: 900 },
+      { x: 490, y: 900 },
+      { x: 420, y: 900 },
+    ];
+
+    return {
+      id: `link-${index}`,
+      component: <LinkBlock imageUrl={link.imageUrl} href={link.href} />,
+      position: positions[index] ?? { x: 0, y: 900 },
+    };
+  }),
   {
     id: "spotify",
     component: <SpotifyWidget />,
-    position: { x: 0, y: 1000 },
+    position: { x: 1033, y: 1050 },
   },
   {
     id: "calendar",
     component: <GoogleCalendarWidget />,
-    position: { x: 0, y: 1200 },
+    position: { x: 0, y: 290 },
   },
   {
     id: "DDay",
     component: <DDayWidget />,
-    position: { x: 0, y: 1400 },
+    position: { x: 2195, y: 570 },
   },
 ];
 
