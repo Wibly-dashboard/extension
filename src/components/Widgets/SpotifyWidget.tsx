@@ -14,6 +14,8 @@ export const SpotifyWidget = () => {
       <img
         src="https://i.scdn.co/image/ab67616d0000b273428d2255141c2119409a31b2"
         alt="Touch The Sky Album Cover"
+        loading="lazy"
+        decoding="async"
         className="h-14 w-14 shrink-0 rounded-md object-cover"
       />
 

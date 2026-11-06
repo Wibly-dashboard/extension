@@ -10,6 +10,8 @@ export const LinkBlock = ({ imageUrl, href }: LinkBlockProps) => {
       <img
         src={imageUrl}
         alt="test"
+        loading="lazy"
+        decoding="async"
         className="h-15 w-15 cursor-pointer rounded-[10px] object-cover pointer-events-none select-none"
         onClick={() => {
           if (href) {
