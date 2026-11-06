@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import Draggable, { type DraggableData } from "react-draggable";
 import { DigitalClock } from "../Widgets/DigitalClock";
 import { LinkBlock } from "../Widgets/LinkBlock";
+import MOCK_LINKS from "../../data/MOCK_LINKS.json";
+import { SpotifyWidget } from "../Widgets/SpotifyWidget";
+import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
+import { TodoWidget } from "../Widgets/TodoListWidget";
+import { DDayWidget } from "../Widgets/DDayWidget";
 
 type Position = {
   x: number;
@@ -26,8 +31,9 @@ type WidgetItemProps = {
   onStop: (id: string, data: DraggableData, startPosition: Position) => void;
 };
 
-const GRID_SIZE = 10; // 그리드 크기 정의
-const WIDGET_GAP = 2; // 위젯 간의 간격을 정의
+const GRID_SIZE = 5; // 그리드 크기 정의
+const WIDGET_GAP = 10; // 위젯 간의 간격을 정의
+const CENTER_SNAP_THRESHOLD = 15;
 const STORAGE_KEY = "dashboard-widgets";
 
 const initialWidgets: Widget[] = [
@@ -39,14 +45,29 @@ const initialWidgets: Widget[] = [
     position: { x: 0, y: 0 },
   },
   {
-    id: "linkBlock",
-    component: <LinkBlock />,
+    id: "todo",
+    component: <TodoWidget />,
     position: { x: 0, y: 300 },
   },
+  ...MOCK_LINKS.map((link, index) => ({
+    id: `link-${index}`,
+    component: <LinkBlock imageUrl={link.imageUrl} href={link.href} />,
+    position: { x: 0, y: 600 + index * 100 },
+  })),
   {
-    id: "linkBlock2",
-    component: <LinkBlock />,
-    position: { x: 0, y: 300 },
+    id: "spotify",
+    component: <SpotifyWidget />,
+    position: { x: 0, y: 1000 },
+  },
+  {
+    id: "calendar",
+    component: <GoogleCalendarWidget />,
+    position: { x: 0, y: 1200 },
+  },
+  {
+    id: "DDay",
+    component: <DDayWidget />,
+    position: { x: 0, y: 1400 },
   },
 ];
 
@@ -93,6 +114,20 @@ const getBoundedPosition = (
       max.y,
     ),
   };
+};
+
+const snapToContainerCenter = (
+  position: Position,
+  container: HTMLElement,
+  node: HTMLElement,
+): Position => {
+  const centeredX = (container.clientWidth - node.offsetWidth) / 2;
+  const widgetCenter = position.x + node.offsetWidth / 2;
+  const containerCenter = container.clientWidth / 2;
+
+  return Math.abs(widgetCenter - containerCenter) <= CENTER_SNAP_THRESHOLD
+    ? { ...position, x: centeredX }
+    : position;
 };
 
 const WidgetItem = ({
@@ -194,8 +229,13 @@ export const BodySection = () => {
 
     if (!container || !node) return;
 
-    const nextPosition = getBoundedPosition(
+    const boundedPosition = getBoundedPosition(
       { x: data.x, y: data.y },
+      container,
+      node,
+    );
+    const nextPosition = snapToContainerCenter(
+      boundedPosition,
       container,
       node,
     );
