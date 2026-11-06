@@ -9,7 +9,7 @@ import { FaRepeat } from "react-icons/fa6";
 
 export const SpotifyWidget = () => {
   return (
-    <div className="flex h-[80px] w-[464px] items-center gap-3 rounded-xl bg-[#181818] px-3 text-white font-pretendard">
+    <div className="flex h-[80px] w-[464px] items-center gap-3 rounded-xl bg-[#fefefe] px-3 text-black font-pretendard">
       {/* Album Cover */}
       <img
         src="https://i.scdn.co/image/ab67616d0000b273428d2255141c2119409a31b2"
