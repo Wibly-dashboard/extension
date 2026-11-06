@@ -1,4 +1,8 @@
-<h1 align="center">Movo Dashboard</h1>
+<div align="center">
+<img src="./src/assets/imgs/logo.png" width="15%" />
+</div>
+
+<br>
 
 <!-- <p align="center">
   <img src="./src/assets/imgs/demo_screenshot.png" alt="Movo Dashboard 화면 예시" />
