@@ -26,14 +26,15 @@ type Widget = {
 
 type WidgetItemProps = {
   widget: Widget;
-  isDragging: boolean;
-  onStart: (id: string) => void;
-  onStop: (id: string, data: DraggableData, startPosition: Position) => void;
+  isDragging: boolean; // 현재 드래그 중인 위젯인지 여부
+  onStart: (id: string) => void; // 드래그 시작 시 위젯 ID를 처리하는 콜백
+  onStop: (id: string, data: DraggableData) => void; // 드래그 종료 시 위치를 처리하는 콜백
 };
 
 const GRID_SIZE = 5; // 그리드 크기 정의
 const WIDGET_GAP = 10; // 위젯 간의 간격을 정의
 const CENTER_SNAP_THRESHOLD = 15;
+const MAX_PLACEMENT_SEARCH_STEPS = 20; // 최대 배치 검색 단계 수
 const STORAGE_KEY = "dashboard-widgets";
 
 const initialWidgets: Widget[] = [
@@ -152,7 +153,6 @@ const WidgetItem = ({
   onStop,
 }: WidgetItemProps) => {
   const nodeRef = useRef<HTMLDivElement>(null);
-  const startPosition = useRef(widget.position);
 
   return (
     <Draggable
@@ -161,11 +161,10 @@ const WidgetItem = ({
       bounds="parent"
       handle=".widget-drag-handle"
       onStart={() => {
-        startPosition.current = widget.position;
         onStart(widget.id);
       }}
       onStop={(_, data) => {
-        onStop(widget.id, data, startPosition.current);
+        onStop(widget.id, data);
       }}
     >
       <div
@@ -203,7 +202,11 @@ export const BodySection = () => {
     }
   });
 
-  const checkCollision = (id: string, position: Position) => {
+  const checkCollision = (
+    id: string,
+    position: Position,
+    widgetList: Widget[] = widgets,
+  ) => {
     // 충돌 체크
     const currentNode = document.getElementById(`widget-${id}`);
 
@@ -215,7 +218,7 @@ export const BodySection = () => {
       height: currentNode.offsetHeight,
     };
 
-    return widgets.some((widget) => {
+    return widgetList.some((widget) => {
       if (widget.id === id) return false;
 
       const otherNode = document.getElementById(`widget-${widget.id}`);
@@ -232,11 +235,90 @@ export const BodySection = () => {
     });
   };
 
+  const findAvailablePosition = (
+    id: string,
+    desiredPosition: Position,
+    container: HTMLElement,
+    node: HTMLElement,
+    widgetList: Widget[],
+  ): Position | undefined => {
+    const candidates: Position[] = [desiredPosition];
+    const candidateKeys = new Set([
+      `${desiredPosition.x}:${desiredPosition.y}`,
+    ]);
+
+    const addCandidate = (candidate: Position) => {
+      const bounded = getBoundedPosition(candidate, container, node);
+      const key = `${bounded.x}:${bounded.y}`;
+
+      if (candidateKeys.has(key)) return;
+
+      candidateKeys.add(key);
+      candidates.push(bounded);
+    };
+
+    widgetList.forEach((widget) => {
+      if (widget.id === id) return;
+
+      const otherNode = document.getElementById(`widget-${widget.id}`);
+      if (!otherNode) return;
+
+      [
+        {
+          x: widget.position.x - node.offsetWidth - WIDGET_GAP,
+          y: desiredPosition.y,
+        },
+        {
+          x: widget.position.x + otherNode.offsetWidth + WIDGET_GAP,
+          y: desiredPosition.y,
+        },
+        {
+          x: desiredPosition.x,
+          y: widget.position.y - node.offsetHeight - WIDGET_GAP,
+        },
+        {
+          x: desiredPosition.x,
+          y: widget.position.y + otherNode.offsetHeight + WIDGET_GAP,
+        },
+      ].forEach(addCandidate);
+    });
+
+    for (let step = 1; step <= MAX_PLACEMENT_SEARCH_STEPS; step += 1) {
+      for (let offset = -step; offset <= step; offset += 1) {
+        [
+          {
+            x: desiredPosition.x + offset * GRID_SIZE,
+            y: desiredPosition.y - step * GRID_SIZE,
+          },
+          {
+            x: desiredPosition.x + offset * GRID_SIZE,
+            y: desiredPosition.y + step * GRID_SIZE,
+          },
+          {
+            x: desiredPosition.x - step * GRID_SIZE,
+            y: desiredPosition.y + offset * GRID_SIZE,
+          },
+          {
+            x: desiredPosition.x + step * GRID_SIZE,
+            y: desiredPosition.y + offset * GRID_SIZE,
+          },
+        ].forEach(addCandidate);
+      }
+    }
+
+    return candidates
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - desiredPosition.x, a.y - desiredPosition.y) -
+          Math.hypot(b.x - desiredPosition.x, b.y - desiredPosition.y),
+      )
+      .find((candidate) => !checkCollision(id, candidate, widgetList));
+  };
+
   const handleStop = (
     // 드래그 종료 시 위치 처리
     id: string,
     data: DraggableData,
-    lastPosition: Position,
   ) => {
     const container = containerRef.current;
     const node = document.getElementById(`widget-${id}`);
@@ -254,38 +336,24 @@ export const BodySection = () => {
       node,
     );
 
-    if (checkCollision(id, nextPosition)) {
-      // 충돌 시 마지막 위치로 되돌리기
-      const fallbackPosition = getBoundedPosition(
-        lastPosition,
+    setWidgets((prev) => {
+      const availablePosition = findAvailablePosition(
+        id,
+        nextPosition,
         container,
         node,
+        prev,
       );
 
-      if (checkCollision(id, fallbackPosition)) {
-        setWidgets((prev) =>
-          prev.map((widget) =>
-            widget.id === id ? { ...widget, position: lastPosition } : widget,
-          ),
-        );
-
-        return;
-      }
-
-      setWidgets((prev) =>
-        prev.map((widget) =>
-          widget.id === id ? { ...widget, position: fallbackPosition } : widget,
-        ),
+      return prev.map((widget) =>
+        widget.id === id
+          ? {
+              ...widget,
+              position: availablePosition ?? nextPosition,
+            }
+          : widget,
       );
-
-      return;
-    }
-
-    setWidgets((prev) =>
-      prev.map((widget) =>
-        widget.id === id ? { ...widget, position: nextPosition } : widget,
-      ),
-    );
+    });
   };
 
   useEffect(() => {
@@ -336,8 +404,8 @@ export const BodySection = () => {
           widget={widget}
           isDragging={draggingId === widget.id}
           onStart={setDraggingId}
-          onStop={(id, data, position) => {
-            handleStop(id, data, position);
+          onStop={(id, data) => {
+            handleStop(id, data);
             setDraggingId(null);
           }}
         />
