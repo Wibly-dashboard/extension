@@ -81,7 +81,13 @@ const initialWidgets: Widget[] = [
   },
   {
     id: "DDay",
-    component: <DDayWidget />,
+    component: (
+      <DDayWidget
+        title={"프로젝트 출시"}
+        targetDate={"2026-10-01"}
+        startDate={"2026-10-01"}
+      />
+    ),
     position: { x: 2195, y: 570 },
   },
 ];
