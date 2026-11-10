@@ -1,6 +1,16 @@
 import { BodySection } from "./components/Body/BodySection";
 import { BottomNavigator } from "./components/Footer/BottomNavigator";
 
+const value = "example";
+
+chrome.storage.sync.set({ key: value }, function () {
+  console.log("Value is set to " + value);
+});
+
+chrome.storage.sync.get(["key"], function (result) {
+  console.log("Value currently is " + result.key);
+});
+
 export const App = () => {
   return (
     <main className="relative flex min-h-screen flex-col items-center gap-5 bg-[url('https://images.unsplash.com/photo-1654198340681-a2e0fc449f1b?auto=format&fit=crop&fm=webp&q=70&w=1600')] bg-cover bg-no-repeat px-4 pt-5 pb-5 select-none">
