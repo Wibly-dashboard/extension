@@ -7,12 +7,38 @@ import {
 } from "react-icons/fa";
 import { FaRepeat } from "react-icons/fa6";
 
-export const SpotifyWidget = () => {
+type SpotifyWidgetProps = {
+  albumCoverUrl: string;
+  trackTitle: string;
+  artistName: string;
+  currentTime: string;
+  totalTime: string;
+  progressPercentage: number;
+  backgroundStyle: "glass" | "ghost" | "solid";
+};
+
+const backgroudStyles = {
+  glass:
+    "bg-white/[0.15] backdrop-blur-[12px] backdrop-saturate-[120%] group-text-white",
+  ghost: "bg-[#fefefe]/[100]",
+  solid: "bg-[#fefefe]",
+};
+
+export const SpotifyWidget = ({
+  albumCoverUrl,
+  trackTitle,
+  artistName,
+  currentTime,
+  totalTime,
+  backgroundStyle,
+}: SpotifyWidgetProps) => {
   return (
-    <div className="flex h-[80px] w-[464px] items-center gap-3 rounded-xl bg-[#fefefe] px-3 text-black font-pretendard">
+    <div
+      className={`flex h-[80px] w-[464px] items-center gap-3 rounded-xl ${backgroudStyles[backgroundStyle]} px-3 text-black font-pretendard`}
+    >
       {/* Album Cover */}
       <img
-        src="https://i.scdn.co/image/ab67616d0000b273428d2255141c2119409a31b2"
+        src={albumCoverUrl}
         alt="Touch The Sky Album Cover"
         loading="lazy"
         decoding="async"
@@ -21,8 +47,10 @@ export const SpotifyWidget = () => {
 
       {/* Track Information */}
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-        <span className="truncate text-sm font-semibold">Touch The Sky</span>
-        <span className="truncate text-xs text-[#b3b3b3]">Kanye West</span>
+        <span className="truncate text-sm font-semibold text-white">
+          {trackTitle}
+        </span>
+        <span className="truncate text-xs text-[#b3b3b3]">{artistName}</span>
       </div>
 
       {/* Player Controls */}
@@ -39,11 +67,11 @@ export const SpotifyWidget = () => {
 
         {/* Progress Bar */}
         <div className="flex w-[190px] items-center gap-2 text-[10px] text-[#b3b3b3]">
-          <span>0:00</span>
+          <span>{currentTime}</span>
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#4d4d4d]">
-            <div className="h-full w-[35%] rounded-full bg-white" />
+            <div className="h-full w-[35%] rounded-full bg-green-500" />
           </div>
-          <span>3:57</span>
+          <span>{totalTime}</span>
         </div>
       </div>
 
