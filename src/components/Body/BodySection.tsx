@@ -30,7 +30,6 @@ type WidgetItemProps = {
 const GRID_SIZE = 5; // 그리드 크기 정의
 const WIDGET_GAP = 10; // 위젯 간의 간격을 정의
 const CENTER_SNAP_THRESHOLD = 15;
-const MAX_PLACEMENT_SEARCH_STEPS = 20; // 최대 배치 검색 단계 수
 const STORAGE_KEY = "dashboard-widgets";
 
 const initialWidgets: Widget[] = [
@@ -216,39 +215,6 @@ export const BodySection = () => {
     }
   });
 
-  const checkCollision = (
-    id: string,
-    position: Position,
-    widgetList: Widget[] = widgets,
-  ) => {
-    // 충돌 체크
-    const currentNode = document.getElementById(`widget-${id}`);
-
-    if (!currentNode) return false;
-
-    const currentRect: Rect = {
-      ...position,
-      width: currentNode.offsetWidth,
-      height: currentNode.offsetHeight,
-    };
-
-    return widgetList.some((widget) => {
-      if (widget.id === id) return false;
-
-      const otherNode = document.getElementById(`widget-${widget.id}`);
-
-      if (!otherNode) return false;
-
-      const otherRect: Rect = {
-        ...widget.position,
-        width: otherNode.offsetWidth,
-        height: otherNode.offsetHeight,
-      };
-
-      return isColliding(currentRect, otherRect);
-    });
-  };
-
   const findAvailablePosition = (
     id: string,
     desiredPosition: Position,
@@ -256,50 +222,54 @@ export const BodySection = () => {
     node: HTMLElement,
     widgetList: Widget[],
   ): Position | undefined => {
-    const candidates: Position[] = [desiredPosition];
-    const candidateKeys = new Set([
-      `${desiredPosition.x}:${desiredPosition.y}`,
-    ]);
+    const candidateKeys = new Set<string>();
+    const otherRects = widgetList.flatMap((widget) => {
+      if (widget.id === id) return [];
 
-    const addCandidate = (candidate: Position) => {
+      const otherNode = document.getElementById(`widget-${widget.id}`);
+      if (!otherNode) return [];
+
+      return [
+        {
+          ...widget.position,
+          width: otherNode.offsetWidth,
+          height: otherNode.offsetHeight,
+        },
+      ];
+    });
+
+    const tryCandidate = (candidate: Position): Position | undefined => {
       const bounded = getBoundedPosition(candidate, container, node);
       const key = `${bounded.x}:${bounded.y}`;
 
-      if (candidateKeys.has(key)) return;
+      if (candidateKeys.has(key)) return undefined;
 
       candidateKeys.add(key);
-      candidates.push(bounded);
+      const currentRect: Rect = {
+        ...bounded,
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+      };
+
+      return otherRects.some((otherRect) => isColliding(currentRect, otherRect))
+        ? undefined
+        : bounded;
     };
 
-    widgetList.forEach((widget) => {
-      if (widget.id === id) return;
+    const desiredCandidate = tryCandidate(desiredPosition);
+    if (desiredCandidate) return desiredCandidate;
 
-      const otherNode = document.getElementById(`widget-${widget.id}`);
-      if (!otherNode) return;
+    const maxPosition = getMaxPosition(container, node);
+    const maxStep = Math.ceil(
+      Math.max(maxPosition.x, maxPosition.y) / GRID_SIZE,
+    );
 
-      [
-        {
-          x: widget.position.x - node.offsetWidth - WIDGET_GAP,
-          y: desiredPosition.y,
-        },
-        {
-          x: widget.position.x + otherNode.offsetWidth + WIDGET_GAP,
-          y: desiredPosition.y,
-        },
-        {
-          x: desiredPosition.x,
-          y: widget.position.y - node.offsetHeight - WIDGET_GAP,
-        },
-        {
-          x: desiredPosition.x,
-          y: widget.position.y + otherNode.offsetHeight + WIDGET_GAP,
-        },
-      ].forEach(addCandidate);
-    });
+    for (let step = 1; step <= maxStep; step += 1) {
+      let closestCandidate: Position | undefined;
+      let closestDistance = Number.POSITIVE_INFINITY;
 
-    for (let step = 1; step <= MAX_PLACEMENT_SEARCH_STEPS; step += 1) {
       for (let offset = -step; offset <= step; offset += 1) {
-        [
+        const ringCandidates = [
           {
             x: desiredPosition.x + offset * GRID_SIZE,
             y: desiredPosition.y - step * GRID_SIZE,
@@ -316,17 +286,59 @@ export const BodySection = () => {
             x: desiredPosition.x + step * GRID_SIZE,
             y: desiredPosition.y + offset * GRID_SIZE,
           },
-        ].forEach(addCandidate);
+        ];
+
+        for (const candidate of ringCandidates) {
+          const available = tryCandidate(candidate);
+          if (!available) continue;
+
+          const distance = Math.hypot(
+            available.x - desiredPosition.x,
+            available.y - desiredPosition.y,
+          );
+
+          if (distance < closestDistance) {
+            closestCandidate = available;
+            closestDistance = distance;
+          }
+        }
+      }
+
+      if (closestCandidate) return closestCandidate;
+    }
+
+    for (const widget of widgetList) {
+      if (widget.id === id) continue;
+
+      const otherNode = document.getElementById(`widget-${widget.id}`);
+      if (!otherNode) continue;
+
+      const edgeCandidates = [
+        {
+          x: widget.position.x - node.offsetWidth - WIDGET_GAP,
+          y: desiredPosition.y,
+        },
+        {
+          x: widget.position.x + otherNode.offsetWidth + WIDGET_GAP,
+          y: desiredPosition.y,
+        },
+        {
+          x: desiredPosition.x,
+          y: widget.position.y - node.offsetHeight - WIDGET_GAP,
+        },
+        {
+          x: desiredPosition.x,
+          y: widget.position.y + otherNode.offsetHeight + WIDGET_GAP,
+        },
+      ];
+
+      for (const candidate of edgeCandidates) {
+        const available = tryCandidate(candidate);
+        if (available) return available;
       }
     }
 
-    return candidates
-      .sort(
-        (a, b) =>
-          Math.hypot(a.x - desiredPosition.x, a.y - desiredPosition.y) -
-          Math.hypot(b.x - desiredPosition.x, b.y - desiredPosition.y),
-      )
-      .find((candidate) => !checkCollision(id, candidate, widgetList));
+    return undefined;
   };
 
   const handleStop = (
@@ -358,12 +370,14 @@ export const BodySection = () => {
         node,
         prev,
       );
+      const currentPosition =
+        prev.find((widget) => widget.id === id)?.position ?? nextPosition;
 
       return prev.map((widget) =>
         widget.id === id
           ? {
               ...widget,
-              position: availablePosition ?? nextPosition,
+              position: availablePosition ?? currentPosition,
             }
           : widget,
       );
