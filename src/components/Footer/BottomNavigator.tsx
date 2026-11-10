@@ -1,4 +1,6 @@
 import { motion, stagger } from "motion/react";
+import { FaPlus } from "react-icons/fa";
+import { PiSquaresFourFill } from "react-icons/pi";
 
 const ICON_URL = [
   "https://assets.icon.museum/icons/45e50a6e-4859-4462-b41a-5f58f3aeeef5.png",
@@ -51,9 +53,9 @@ export const BottomNavigator = () => {
         },
       }}
     >
-      <a href="https://example.com" target="_self" rel="noopener noreferrer">
-        <section className="flex gap-3">
-          {ICON_URL.map((url, index) => (
+      <section className="flex gap-3">
+        {ICON_URL.map((url, index) => (
+          <a href="https://example.com" target="_self" rel="noopener noreferrer">
             <motion.img
               key={index}
               src={url}
@@ -69,9 +71,15 @@ export const BottomNavigator = () => {
                 y: 0,
               }}
             />
-          ))}
-        </section>
-      </a>
+          </a>
+        ))}
+        <div className="h-15 w-15 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 first-letter: flex items-center justify-center hover:cursor-pointer hover:bg-[#fefefe] duration-300">
+          <FaPlus className="h-full w-full p-3 text-[#C4C4C4]/80" />
+        </div>
+        <div>
+          <PiSquaresFourFill className="h-15 w-15 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 p-3 text-[#C4C4C4]/80 hover:cursor-pointer hover:bg-[#fefefe] duration-300" />
+        </div>
+      </section>
     </motion.div>
   );
 };
