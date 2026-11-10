@@ -7,11 +7,7 @@ import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { TodoWidget } from "../Widgets/TodoListWidget";
 import { DDayWidget } from "../Widgets/DDayWidget";
-
-type Position = {
-  x: number;
-  y: number;
-};
+import { clampPosition, type Position } from "./position";
 
 type Rect = Position & {
   width: number;
@@ -71,7 +67,19 @@ const initialWidgets: Widget[] = [
   }),
   {
     id: "spotify",
-    component: <SpotifyWidget />,
+    component: (
+      <SpotifyWidget
+        albumCoverUrl={
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzL2JHMmJrHtM03_BlEtYokUjk96e3bP5NwsyIfzZEgfrgdIEo07m4c8c&s=10"
+        }
+        trackTitle={"Touch The Sky"}
+        artistName={"Kanye West"}
+        currentTime={"0:00"}
+        totalTime={"3:57"}
+        progressPercentage={35}
+        backgroundStyle={"glass"}
+      />
+    ),
     position: { x: 1033, y: 1050 },
   },
   {
@@ -128,13 +136,13 @@ const getBoundedPosition = (
 ): Position => {
   const max = getMaxPosition(container, node);
 
-  return {
-    x: Math.min(Math.max(0, snapPosition(position.x, node.offsetWidth)), max.x),
-    y: Math.min(
-      Math.max(0, snapPosition(position.y, node.offsetHeight)),
-      max.y,
-    ),
-  };
+  return clampPosition(
+    {
+      x: snapPosition(position.x, node.offsetWidth),
+      y: snapPosition(position.y, node.offsetHeight),
+    },
+    max,
+  );
 };
 
 const snapToContainerCenter = (
@@ -142,7 +150,7 @@ const snapToContainerCenter = (
   container: HTMLElement,
   node: HTMLElement,
 ): Position => {
-  const centeredX = (container.clientWidth - node.offsetWidth) / 2;
+  const centeredX = Math.round((container.clientWidth - node.offsetWidth) / 2);
   const widgetCenter = position.x + node.offsetWidth / 2;
   const containerCenter = container.clientWidth / 2;
 
@@ -375,7 +383,10 @@ export const BodySection = () => {
 
           if (!node) return widget;
 
-          const position = getBoundedPosition(widget.position, container, node);
+          const position = clampPosition(
+            widget.position,
+            getMaxPosition(container, node),
+          );
 
           return {
             ...widget,
