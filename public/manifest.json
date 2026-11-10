@@ -1,0 +1,6 @@
+{
+  "name": "Extension Dashboard",
+  "version": "1.0",
+  "permissions": ["storage"],
+  "manifest_version": 3
+}
