@@ -1,3 +1,5 @@
+import { useSettings } from "../../hooks/useSettings";
+
 type LinkBlockProps = {
   imageUrl: string;
   /** 이동할 웹 사이트 URL */
@@ -5,6 +7,8 @@ type LinkBlockProps = {
 };
 
 export const LinkBlock = ({ imageUrl, href }: LinkBlockProps) => {
+  const { linkTarget } = useSettings();
+
   return (
     <div className="flex w-fit items-center justify-center">
       <img
@@ -15,7 +19,7 @@ export const LinkBlock = ({ imageUrl, href }: LinkBlockProps) => {
         className="h-15 w-15 cursor-pointer rounded-[10px] object-cover pointer-events-none select-none"
         onClick={() => {
           if (href) {
-            window.open(href, "_blank");
+            window.open(href, linkTarget);
           }
         }}
       />
