@@ -6,6 +6,7 @@ import {
   FaRandom,
 } from "react-icons/fa";
 import { FaRepeat } from "react-icons/fa6";
+import { useServiceToken } from "../../hooks/useTokens";
 
 type SpotifyWidgetProps = {
   albumCoverUrl: string;
@@ -32,6 +33,24 @@ export const SpotifyWidget = ({
   totalTime,
   backgroundStyle,
 }: SpotifyWidgetProps) => {
+  // 설정 > 저장소에 있는 토큰을 읽어 동작한다. 토큰이 없으면 연결 안내를 보여준다
+  // TODO: 실제 Spotify API 연동 시 이 토큰으로 재생 정보를 요청
+  const token = useServiceToken("spotify");
+
+  if (!token) {
+    return (
+      <div
+        className={`flex h-[80px] w-[464px] items-center gap-3 rounded-xl ${backgroudStyles[backgroundStyle]} px-4 font-pretendard`}
+      >
+        <FaSpotify className="shrink-0 text-3xl text-[#1DB954]" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-semibold text-white">Spotify 연결이 필요합니다</span>
+          <span className="text-xs text-[#b3b3b3]">설정 &gt; 저장소에서 토큰을 등록해 주세요</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex h-[80px] w-[464px] items-center gap-3 rounded-xl ${backgroudStyles[backgroundStyle]} px-3 text-black font-pretendard`}
