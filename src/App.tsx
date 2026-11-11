@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { BodySection } from "./components/Body/BodySection";
 import { BottomNavigator } from "./components/Footer/BottomNavigator";
+import { useBlockZoom } from "./hooks/useBlockZoom";
 
 const value = "example";
 
 export const App = () => {
+  useBlockZoom();
+
   useEffect(() => {
     const storage = globalThis.chrome?.storage?.local;
 

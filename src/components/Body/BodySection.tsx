@@ -7,7 +7,14 @@ import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { TodoWidget } from "../Widgets/TodoListWidget";
 import { DDayWidget } from "../Widgets/DDayWidget";
-import { clampPosition, type Position } from "./position";
+import {
+  clampPosition,
+  REFERENCE_SIZE,
+  toPixel,
+  toRatio,
+  type Position,
+  type Size,
+} from "./position";
 
 type Rect = Position & {
   width: number;
@@ -17,11 +24,12 @@ type Rect = Position & {
 type Widget = {
   id: string;
   component: React.ReactNode;
-  position: Position; // 초기 위치를 저장하는 position
+  position: Position; // 컨테이너 대비 비율(0~1)로 저장되는 위치. 화면 크기가 바뀌어도 배치가 유지됨
 };
 
 type WidgetItemProps = {
   widget: Widget;
+  pixelPosition: Position; // 현재 컨테이너 크기에서 실제로 렌더링할 픽셀 위치
   isDragging: boolean; // 현재 드래그 중인 위젯인지 여부
   onStart: (id: string) => void; // 드래그 시작 시 위젯 ID를 처리하는 콜백
   onStop: (id: string, data: DraggableData) => void; // 드래그 종료 시 위치를 처리하는 콜백
@@ -30,11 +38,12 @@ type WidgetItemProps = {
 const GRID_SIZE = 5; // 그리드 크기 정의
 const WIDGET_GAP = 10; // 위젯 간의 간격을 정의
 const CENTER_SNAP_THRESHOLD = 15;
-const STORAGE_KEY = "dashboard-widgets";
+// 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
+const STORAGE_KEY = "dashboard-widgets-v2";
 
 const initialWidgets: Widget[] = [
   // 초기 위젯 배열
-  // position: 위젯의 초기 위치
+  // position: REFERENCE_SIZE 기준 픽셀 좌표 (아래에서 비율로 변환해 사용)
 
   {
     id: "clock",
@@ -116,24 +125,25 @@ const isColliding = (a: Rect, b: Rect) => {
     a.y + a.height > b.y - WIDGET_GAP
   );
 };
+
 const getMaxPosition = (
   // 최대 위치 계산
-  container: HTMLElement,
+  size: Size,
   node: HTMLElement,
 ): Position => {
   return {
-    x: Math.max(0, container.clientWidth - node.offsetWidth),
-    y: Math.max(0, container.clientHeight - node.offsetHeight),
+    x: Math.max(0, size.width - node.offsetWidth),
+    y: Math.max(0, size.height - node.offsetHeight),
   };
 };
 
 const getBoundedPosition = (
   // 경계 내 위치 계산
   position: Position,
-  container: HTMLElement,
+  size: Size,
   node: HTMLElement,
 ): Position => {
-  const max = getMaxPosition(container, node);
+  const max = getMaxPosition(size, node);
 
   return clampPosition(
     {
@@ -146,21 +156,30 @@ const getBoundedPosition = (
 
 const snapToContainerCenter = (
   position: Position,
-  container: HTMLElement,
+  size: Size,
   node: HTMLElement,
 ): Position => {
-  const centeredX = Math.round((container.clientWidth - node.offsetWidth) / 2);
+  const centeredX = Math.round((size.width - node.offsetWidth) / 2);
   const widgetCenter = position.x + node.offsetWidth / 2;
-  const containerCenter = container.clientWidth / 2;
+  const containerCenter = size.width / 2;
 
   return Math.abs(widgetCenter - containerCenter) <= CENTER_SNAP_THRESHOLD
     ? { ...position, x: centeredX }
     : position;
 };
 
+// 저장된 비율 위치를 현재 컨테이너 크기의 픽셀 위치로 변환 (표시용으로만 경계 보정, 저장값은 변경하지 않음)
+const getWidgetPixelPosition = (widget: Widget, size: Size): Position => {
+  const pixel = toPixel(widget.position, size);
+  const node = document.getElementById(`widget-${widget.id}`);
+
+  return node ? clampPosition(pixel, getMaxPosition(size, node)) : pixel;
+};
+
 const WidgetItem = ({
   // 개별 위젯 아이템 컴포넌트
   widget,
+  pixelPosition,
   isDragging,
   onStart,
   onStop,
@@ -170,7 +189,7 @@ const WidgetItem = ({
   return (
     <Draggable
       nodeRef={nodeRef}
-      position={widget.position}
+      position={pixelPosition}
       bounds="parent"
       handle=".widget-drag-handle"
       onStart={() => {
@@ -196,116 +215,40 @@ const WidgetItem = ({
 export const BodySection = () => {
   const containerRef = useRef<HTMLDivElement>(null); // 드래그 가능한 영역의 참조
   const [draggingId, setDraggingId] = useState<string | null>(null); // 현재 드래그 중인 위젯의 ID 상태
+  const [containerSize, setContainerSize] = useState<Size>(REFERENCE_SIZE); // 현재 드래그 영역의 크기
 
   const [widgets, setWidgets] = useState<Widget[]>(() => {
-    // 위젯 상태 초기화
+    // 위젯 상태 초기화 (위치는 비율로 보관)
+    const defaults = initialWidgets.map((widget) => ({
+      ...widget,
+      position: toRatio(widget.position, REFERENCE_SIZE),
+    }));
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
 
-      if (!saved) return initialWidgets;
+      if (!saved) return defaults;
 
       const savedPositions = JSON.parse(saved) as Record<string, Position>;
 
-      return initialWidgets.map((widget) => ({
+      return defaults.map((widget) => ({
         ...widget,
         position: savedPositions[widget.id] ?? widget.position,
       }));
     } catch {
-      return initialWidgets;
+      return defaults;
     }
   });
 
   const findAvailablePosition = (
     id: string,
     desiredPosition: Position,
-    container: HTMLElement,
+    size: Size,
     node: HTMLElement,
     widgetList: Widget[],
   ): Position | undefined => {
-    const candidateKeys = new Set<string>();
-    const otherRects = widgetList.flatMap((widget) => {
-      if (widget.id === id) return [];
-
-      const otherNode = document.getElementById(`widget-${widget.id}`);
-      if (!otherNode) return [];
-
-      return [
-        {
-          ...widget.position,
-          width: otherNode.offsetWidth,
-          height: otherNode.offsetHeight,
-        },
-      ];
-    });
-
-    const tryCandidate = (candidate: Position): Position | undefined => {
-      const bounded = getBoundedPosition(candidate, container, node);
-      const key = `${bounded.x}:${bounded.y}`;
-
-      if (candidateKeys.has(key)) return undefined;
-
-      candidateKeys.add(key);
-      const currentRect: Rect = {
-        ...bounded,
-        width: node.offsetWidth,
-        height: node.offsetHeight,
-      };
-
-      return otherRects.some((otherRect) => isColliding(currentRect, otherRect))
-        ? undefined
-        : bounded;
-    };
-
-    const desiredCandidate = tryCandidate(desiredPosition);
-    if (desiredCandidate) return desiredCandidate;
-
-    const maxPosition = getMaxPosition(container, node);
-    const maxStep = Math.ceil(
-      Math.max(maxPosition.x, maxPosition.y) / GRID_SIZE,
-    );
-
-    for (let step = 1; step <= maxStep; step += 1) {
-      let closestCandidate: Position | undefined;
-      let closestDistance = Number.POSITIVE_INFINITY;
-
-      for (let offset = -step; offset <= step; offset += 1) {
-        const ringCandidates = [
-          {
-            x: desiredPosition.x + offset * GRID_SIZE,
-            y: desiredPosition.y - step * GRID_SIZE,
-          },
-          {
-            x: desiredPosition.x + offset * GRID_SIZE,
-            y: desiredPosition.y + step * GRID_SIZE,
-          },
-          {
-            x: desiredPosition.x - step * GRID_SIZE,
-            y: desiredPosition.y + offset * GRID_SIZE,
-          },
-          {
-            x: desiredPosition.x + step * GRID_SIZE,
-            y: desiredPosition.y + offset * GRID_SIZE,
-          },
-        ];
-
-        for (const candidate of ringCandidates) {
-          const available = tryCandidate(candidate);
-          if (!available) continue;
-
-          const distance = Math.hypot(
-            available.x - desiredPosition.x,
-            available.y - desiredPosition.y,
-          );
-
-          if (distance < closestDistance) {
-            closestCandidate = available;
-            closestDistance = distance;
-          }
-        }
-      }
-
-      if (closestCandidate) return closestCandidate;
-    }
+    // 다른 위젯의 사각형은 한 번만 측정해 재사용 (탐색 루프 안에서 DOM을 읽지 않도록)
+    const otherRects: Rect[] = [];
 
     for (const widget of widgetList) {
       if (widget.id === id) continue;
@@ -313,32 +256,47 @@ export const BodySection = () => {
       const otherNode = document.getElementById(`widget-${widget.id}`);
       if (!otherNode) continue;
 
-      const edgeCandidates = [
-        {
-          x: widget.position.x - node.offsetWidth - WIDGET_GAP,
-          y: desiredPosition.y,
-        },
-        {
-          x: widget.position.x + otherNode.offsetWidth + WIDGET_GAP,
-          y: desiredPosition.y,
-        },
-        {
-          x: desiredPosition.x,
-          y: widget.position.y - node.offsetHeight - WIDGET_GAP,
-        },
-        {
-          x: desiredPosition.x,
-          y: widget.position.y + otherNode.offsetHeight + WIDGET_GAP,
-        },
-      ];
+      otherRects.push({
+        ...getWidgetPixelPosition(widget, size),
+        width: otherNode.offsetWidth,
+        height: otherNode.offsetHeight,
+      });
+    }
 
-      for (const candidate of edgeCandidates) {
-        const available = tryCandidate(candidate);
-        if (available) return available;
+    const width = node.offsetWidth;
+    const height = node.offsetHeight;
+    const isFree = (candidate: Position) => {
+      const rect: Rect = { ...candidate, width, height };
+
+      return !otherRects.some((otherRect) => isColliding(rect, otherRect));
+    };
+
+    const desiredBounded = getBoundedPosition(desiredPosition, size, node);
+    if (isFree(desiredBounded)) return desiredBounded;
+
+    // 컨테이너 안의 그리드 후보를 한 번 훑어 원래 위치에서 가장 가까운 빈 자리를 선택
+    const max = getMaxPosition(size, node);
+    let best: Position | undefined;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let x = 0; x <= max.x; x += GRID_SIZE) {
+      for (let y = 0; y <= max.y; y += GRID_SIZE) {
+        const dx = x - desiredPosition.x;
+        const dy = y - desiredPosition.y;
+        const distance = dx * dx + dy * dy;
+
+        // 이미 찾은 후보보다 멀면 충돌 검사를 생략
+        if (distance >= bestDistance) continue;
+
+        const candidate = getBoundedPosition({ x, y }, size, node);
+        if (!isFree(candidate)) continue;
+
+        best = candidate;
+        bestDistance = distance;
       }
     }
 
-    return undefined;
+    return best;
   };
 
   const handleStop = (
@@ -346,19 +304,18 @@ export const BodySection = () => {
     id: string,
     data: DraggableData,
   ) => {
-    const container = containerRef.current;
     const node = document.getElementById(`widget-${id}`);
 
-    if (!container || !node) return;
+    if (!node || containerSize.width <= 0) return;
 
     const boundedPosition = getBoundedPosition(
       { x: data.x, y: data.y },
-      container,
+      containerSize,
       node,
     );
     const nextPosition = snapToContainerCenter(
       boundedPosition,
-      container,
+      containerSize,
       node,
     );
 
@@ -366,18 +323,21 @@ export const BodySection = () => {
       const availablePosition = findAvailablePosition(
         id,
         nextPosition,
-        container,
+        containerSize,
         node,
         prev,
       );
       const currentPosition =
-        prev.find((widget) => widget.id === id)?.position ?? nextPosition;
+        prev.find((widget) => widget.id === id)?.position ??
+        toRatio(nextPosition, containerSize);
 
       return prev.map((widget) =>
         widget.id === id
           ? {
               ...widget,
-              position: availablePosition ?? currentPosition,
+              position: availablePosition
+                ? toRatio(availablePosition, containerSize)
+                : currentPosition,
             }
           : widget,
       );
@@ -385,29 +345,18 @@ export const BodySection = () => {
   };
 
   useEffect(() => {
-    // 드래그 가능한 영역의 크기 변경 시 위젯 위치 조정
+    // 드래그 가능한 영역의 크기 변경 시 현재 크기만 갱신 (저장된 위치는 그대로 유지)
     const container = containerRef.current;
 
     if (!container) return;
 
     const observer = new ResizeObserver(() => {
-      setWidgets((prev) =>
-        prev.map((widget) => {
-          const node = document.getElementById(`widget-${widget.id}`);
+      if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
 
-          if (!node) return widget;
-
-          const position = clampPosition(
-            widget.position,
-            getMaxPosition(container, node),
-          );
-
-          return {
-            ...widget,
-            position,
-          };
-        }),
-      );
+      setContainerSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
     });
 
     observer.observe(container);
@@ -416,7 +365,7 @@ export const BodySection = () => {
   }, []);
 
   useEffect(() => {
-    // 위젯 위치 변경 시 localStorage에 저장
+    // 위젯 위치 변경 시 localStorage에 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
     const positions = Object.fromEntries(
       widgets.map((widget) => [widget.id, widget.position]),
     );
@@ -433,6 +382,7 @@ export const BodySection = () => {
         <WidgetItem
           key={widget.id}
           widget={widget}
+          pixelPosition={getWidgetPixelPosition(widget, containerSize)}
           isDragging={draggingId === widget.id}
           onStart={setDraggingId}
           onStop={(id, data) => {
