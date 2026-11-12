@@ -1,10 +1,10 @@
 import type { NavLink } from "../types/settings";
 import { createLocalStore, useLocalStore } from "./localStore";
 
-export const DEFAULT_NAV_LINKS: NavLink[] = ["https://github.com/apple-touch-icon.png"].map((imageUrl, index) => ({
+export const DEFAULT_NAV_LINKS: NavLink[] = ["https://ko-fi.com/apple-touch-icon.png"].map((imageUrl, index) => ({
   id: `default-${index}`,
   imageUrl,
-  href: "https://github.com/",
+  href: "https://ko-fi.com/hoya76",
 }));
 
 const isNavLink = (value: unknown): value is NavLink => {
