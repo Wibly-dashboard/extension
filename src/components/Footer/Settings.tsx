@@ -17,7 +17,7 @@ type SettingsProps = {
 
 const TABS = [
   { id: "general", label: "일반" },
-  { id: "links", label: "링크" },
+  { id: "links", label: "빠른 링크" },
   { id: "storage", label: "저장소" },
   { id: "help", label: "도움말" },
   { id: "news", label: "새 소식" },
@@ -78,7 +78,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
         role="dialog"
         aria-modal="true"
         aria-label="설정"
-        className="glass flex h-[680px] max-h-full w-[640px] max-w-full flex-col overflow-hidden bg-neutral-900/60 text-white"
+        className="glass flex h-[680px] max-h-full w-[640px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
