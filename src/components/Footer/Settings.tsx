@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { FaTimes, FaUndo } from "react-icons/fa";
 import { DEFAULT_SETTINGS, settingsStore } from "../../hooks/useSettings";
+import { navLinksStore } from "../../hooks/useNavLinks";
 import { tokenStore } from "../../hooks/useTokens";
 import { GeneralSection } from "../Settings/GeneralSection";
 import { HelpSection } from "../Settings/HelpSection";
+import { LinksSection } from "../Settings/LinksSection";
 import { NewsSection } from "../Settings/NewsSection";
 import { StorageSection } from "../Settings/StorageSection";
 
@@ -15,6 +17,7 @@ type SettingsProps = {
 
 const TABS = [
   { id: "general", label: "일반" },
+  { id: "links", label: "링크" },
   { id: "storage", label: "저장소" },
   { id: "help", label: "도움말" },
   { id: "news", label: "새 소식" },
@@ -27,6 +30,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
   // 저장을 누르기 전까지는 임시 값만 수정하고, 저장 시 스토어에 반영한다
   const [settings, setSettings] = useState(settingsStore.get);
   const [tokens, setTokens] = useState(tokenStore.get);
+  const [links, setLinks] = useState(navLinksStore.get);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,6 +51,11 @@ export const Settings = ({ onClose }: SettingsProps) => {
 
     if (!tokenStore.set(tokens)) {
       setSaveError("토큰을 저장하지 못했습니다. 다시 시도해 주세요.");
+      return;
+    }
+
+    if (!navLinksStore.set(links)) {
+      setSaveError("링크를 저장하지 못했습니다. 다시 시도해 주세요.");
       return;
     }
 
@@ -109,10 +118,14 @@ export const Settings = ({ onClose }: SettingsProps) => {
         </section>
 
         {/* 설정 섹션 */}
-        <section role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section
+          role="tabpanel"
+          className="min-h-0 flex-1 overflow-y-auto px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {tab === "general" && (
             <GeneralSection settings={settings} onChange={(patch) => setSettings((prev) => ({ ...prev, ...patch }))} />
           )}
+          {tab === "links" && <LinksSection links={links} onChange={setLinks} />}
           {tab === "storage" && <StorageSection tokens={tokens} onChange={setTokens} />}
           {tab === "help" && <HelpSection />}
           {tab === "news" && <NewsSection />}

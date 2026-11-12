@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable, { type DraggableData } from "react-draggable";
+import { AnimatePresence } from "motion/react";
+import { FaPen } from "react-icons/fa";
 import { DigitalClock } from "../Widgets/DigitalClock";
 import { LinkBlock } from "../Widgets/LinkBlock";
 import MOCK_LINKS from "../../data/MOCK_LINKS.json";
@@ -8,6 +10,9 @@ import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { TodoWidget } from "../Widgets/TodoListWidget";
 import { DDayWidget } from "../Widgets/DDayWidget";
 import { useSettings } from "../../hooks/useSettings";
+import { deleteWidget, useAddedWidgets, useRemovedDefaultWidgets } from "../../hooks/useAddedWidgets";
+import { findCatalogItem } from "../WidgetLibrary/widgetCatalog";
+import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
 
 type Rect = Position & {
@@ -17,6 +22,7 @@ type Rect = Position & {
 
 type Widget = {
   id: string;
+  name: string; // 편집 창 등에 표시할 위젯 이름
   component: React.ReactNode;
   position: Position; // 컨테이너 대비 비율(0~1)로 저장되는 위치. 화면 크기가 바뀌어도 배치가 유지됨
 };
@@ -27,6 +33,9 @@ type WidgetItemProps = {
   isDragging: boolean; // 현재 드래그 중인 위젯인지 여부
   onStart: (id: string) => void; // 드래그 시작 시 위젯 ID를 처리하는 콜백
   onStop: (id: string, data: DraggableData) => void; // 드래그 종료 시 위치를 처리하는 콜백
+  isSelected: boolean; // 우클릭으로 선택된 위젯인지 여부
+  onSelect: (id: string) => void; // 우클릭 시 위젯을 선택하는 콜백
+  onEdit: (id: string) => void; // 연필 아이콘을 눌렀을 때 편집 창을 여는 콜백
 };
 
 // 설정에서 바꿀 수 있는 배치 규칙
@@ -46,11 +55,13 @@ const initialWidgets: Widget[] = [
 
   {
     id: "clock",
+    name: "디지털 시계",
     component: <DigitalClock />,
     position: { x: 1065, y: 7.5 },
   },
   {
     id: "todo",
+    name: "할 일 목록",
     component: <TodoWidget />,
     position: { x: 2145, y: 260 },
   },
@@ -68,12 +79,14 @@ const initialWidgets: Widget[] = [
 
     return {
       id: `link-${index}`,
+      name: "링크",
       component: <LinkBlock imageUrl={link.imageUrl} href={link.href} />,
       position: positions[index] ?? { x: 0, y: 900 },
     };
   }),
   {
     id: "spotify",
+    name: "Spotify",
     component: (
       <SpotifyWidget
         albumCoverUrl={
@@ -91,15 +104,33 @@ const initialWidgets: Widget[] = [
   },
   {
     id: "calendar",
+    name: "캘린더",
     component: <GoogleCalendarWidget />,
     position: { x: 0, y: 290 },
   },
   {
     id: "DDay",
+    name: "D-Day",
     component: <DDayWidget title={"프로젝트 출시"} targetDate={"2026-10-01"} startDate={"2026-10-01"} />,
     position: { x: 2195, y: 570 },
   },
 ];
+
+// 기본 위젯의 위치를 비율로 변환 (화면 크기와 무관한 저장 형식)
+const defaultWidgets: Widget[] = initialWidgets.map((widget) => ({
+  ...widget,
+  position: toRatio(widget.position, REFERENCE_SIZE),
+}));
+
+const readSavedPositions = (): Record<string, Position> => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    return saved ? (JSON.parse(saved) as Record<string, Position>) : {};
+  } catch {
+    return {};
+  }
+};
 
 const snapPosition = (value: number, size: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
@@ -114,10 +145,7 @@ const snapPosition = (value: number, size: number, layout: LayoutOptions) => {
 const isColliding = (a: Rect, b: Rect, gap: number) => {
   // 충돌 여부 확인
   return (
-    a.x < b.x + b.width + gap &&
-    a.x + a.width > b.x - gap &&
-    a.y < b.y + b.height + gap &&
-    a.y + a.height > b.y - gap
+    a.x < b.x + b.width + gap && a.x + a.width > b.x - gap && a.y < b.y + b.height + gap && a.y + a.height > b.y - gap
   );
 };
 
@@ -173,6 +201,9 @@ const WidgetItem = ({
   isDragging,
   onStart,
   onStop,
+  isSelected,
+  onSelect,
+  onEdit,
 }: WidgetItemProps) => {
   const nodeRef = useRef<HTMLDivElement>(null);
 
@@ -192,9 +223,35 @@ const WidgetItem = ({
       <div
         ref={nodeRef}
         id={`widget-${widget.id}`}
-        className={`absolute left-0 top-0 w-fit ${isDragging ? "z-50" : "z-0"}`}
+        // will-change-transform: 위젯을 별도 합성 레이어로 올려 드래그 중 배경과 다른 위젯을 다시 그리지 않게 한다
+        className={`absolute left-0 top-0 w-fit will-change-transform ${isDragging || isSelected ? "z-50" : "z-0"}`}
+        onContextMenu={(event) => {
+          // 브라우저 기본 메뉴 대신 위젯 선택
+          event.preventDefault();
+          onSelect(widget.id);
+        }}
       >
-        <div className="widget-drag-handle cursor-grab rounded-xl active:cursor-grabbing">{widget.component}</div>
+        <div
+          // 선택 테두리는 위젯 모양과 관계없이 모두 같은 모양으로 그린다.
+          // outline은 위젯 크기(충돌 판정)에 영향을 주지 않고, offset으로 위젯 모서리와 일정한 간격을 둬 모서리 틈이 생기지 않게 한다
+          className={`widget-drag-handle cursor-grab rounded-2xl active:cursor-grabbing ${
+            isSelected ? "outline-2 outline-offset-3 outline-blue-500" : ""
+          }`}
+        >
+          {widget.component}
+        </div>
+        {isSelected && (
+          // 드래그 핸들 바깥에 두어 버튼을 눌러도 드래그가 시작되지 않게 한다
+          <button
+            type="button"
+            aria-label={`${widget.name} 편집`}
+            onClick={() => onEdit(widget.id)}
+            // 위젯 안쪽 모서리에 둬서 위젯이 화면 끝에 있어도 영역 밖으로 잘리지 않게 한다
+            className="absolute top-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-colors duration-200 hover:bg-blue-400"
+          >
+            <FaPen className="h-3 w-3" />
+          </button>
+        )}
       </div>
     </Draggable>
   );
@@ -207,28 +264,28 @@ export const BodySection = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null); // 현재 드래그 중인 위젯의 ID 상태
   const [containerSize, setContainerSize] = useState<Size>(REFERENCE_SIZE); // 현재 드래그 영역의 크기
 
-  const [widgets, setWidgets] = useState<Widget[]>(() => {
-    // 위젯 상태 초기화 (위치는 비율로 보관)
-    const defaults = initialWidgets.map((widget) => ({
+  const [selectedId, setSelectedId] = useState<string | null>(null); // 우클릭으로 선택된 위젯 ID
+  const [editingId, setEditingId] = useState<string | null>(null); // 편집 창이 열린 위젯 ID
+  const closeEditor = useCallback(() => setEditingId(null), []);
+  const addedWidgets = useAddedWidgets(); // 위젯 라이브러리에서 추가한 위젯
+  const removedDefaultIds = useRemovedDefaultWidgets(); // 사용자가 삭제한 기본 위젯
+  const [savedPositions, setSavedPositions] = useState(readSavedPositions); // 사용자가 옮긴 위젯의 비율 위치
+
+  const widgets = useMemo<Widget[]>(() => {
+    // 기본 위젯 + 라이브러리 위젯을 합치고, 사용자가 옮긴 위치가 있으면 그 위치를 사용
+    const libraryWidgets = addedWidgets.flatMap((added) => {
+      const item = findCatalogItem(added.type);
+
+      return item ? [{ id: added.id, name: item.name, component: item.render(), position: added.position }] : [];
+    });
+
+    const visibleDefaults = defaultWidgets.filter((widget) => !removedDefaultIds.includes(widget.id));
+
+    return [...visibleDefaults, ...libraryWidgets].map((widget) => ({
       ...widget,
-      position: toRatio(widget.position, REFERENCE_SIZE),
+      position: savedPositions[widget.id] ?? widget.position,
     }));
-
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-
-      if (!saved) return defaults;
-
-      const savedPositions = JSON.parse(saved) as Record<string, Position>;
-
-      return defaults.map((widget) => ({
-        ...widget,
-        position: savedPositions[widget.id] ?? widget.position,
-      }));
-    } catch {
-      return defaults;
-    }
-  });
+  }, [addedWidgets, removedDefaultIds, savedPositions]);
 
   const findAvailablePosition = (
     id: string,
@@ -301,19 +358,14 @@ export const BodySection = () => {
     const boundedPosition = getBoundedPosition({ x: data.x, y: data.y }, containerSize, node, layout);
     const nextPosition = snapToContainerCenter(boundedPosition, containerSize, node);
 
-    setWidgets((prev) => {
-      const availablePosition = findAvailablePosition(id, nextPosition, containerSize, node, prev);
-      const currentPosition = prev.find((widget) => widget.id === id)?.position ?? toRatio(nextPosition, containerSize);
+    const availablePosition = findAvailablePosition(id, nextPosition, containerSize, node, widgets);
+    const currentPosition =
+      widgets.find((widget) => widget.id === id)?.position ?? toRatio(nextPosition, containerSize);
 
-      return prev.map((widget) =>
-        widget.id === id
-          ? {
-              ...widget,
-              position: availablePosition ? toRatio(availablePosition, containerSize) : currentPosition,
-            }
-          : widget,
-      );
-    });
+    setSavedPositions((prev) => ({
+      ...prev,
+      [id]: availablePosition ? toRatio(availablePosition, containerSize) : currentPosition,
+    }));
   };
 
   useEffect(() => {
@@ -337,6 +389,30 @@ export const BodySection = () => {
   }, []);
 
   useEffect(() => {
+    // 위젯이 선택된 동안: 위젯 바깥을 누르거나 ESC를 누르면 선택 해제
+    if (!selectedId) return;
+
+    const handleMouseDown = (event: MouseEvent) => {
+      const selectedNode = document.getElementById(`widget-${selectedId}`);
+
+      if (!selectedNode?.contains(event.target as Node)) setSelectedId(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedId(null);
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedId]);
+
+  const editingWidget = widgets.find((widget) => widget.id === editingId);
+
+  useEffect(() => {
     // 위젯 위치 변경 시 localStorage에 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
     const positions = Object.fromEntries(widgets.map((widget) => [widget.id, widget.position]));
 
@@ -356,8 +432,26 @@ export const BodySection = () => {
             handleStop(id, data);
             setDraggingId(null);
           }}
+          isSelected={selectedId === widget.id}
+          onSelect={setSelectedId}
+          onEdit={(id) => {
+            setSelectedId(null);
+            setEditingId(id);
+          }}
         />
       ))}
+      <AnimatePresence>
+        {editingWidget && (
+          <WidgetEditor
+            name={editingWidget.name}
+            onClose={closeEditor}
+            onDelete={() => {
+              deleteWidget(editingWidget.id);
+              closeEditor();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

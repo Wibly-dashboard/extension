@@ -1,17 +1,13 @@
 import { useCallback, useState } from "react";
-import { AnimatePresence, motion, stagger } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { FaPlus } from "react-icons/fa";
 import { PiSquaresFourFill } from "react-icons/pi";
+import { useNavLinks } from "../../hooks/useNavLinks";
 import { useSettings } from "../../hooks/useSettings";
+import { WidgetLibrary } from "../WidgetLibrary/WidgetLibrary";
 import { Settings } from "./Settings";
 
-const ICON_URL = [
-  "https://assets.icon.museum/icons/45e50a6e-4859-4462-b41a-5f58f3aeeef5.png",
-  "https://assets.icon.museum/icons/f4d74646-090f-4068-9d39-553a14373389.png",
-  "https://assets.icon.museum/icons/32434c98-7fd4-437e-994e-7a73155a0012.png",
-  "https://assets.icon.museum/icons/9851e99f-2d59-46d4-8945-a5439897dc22.png",
-  "https://assets.icon.museum/icons/334a501e-b555-42bd-a170-658c17dd5fee.jpg",
-];
+const STAGGER_DELAY = 0.08;
 
 const itemVariants = {
   hidden: {
@@ -19,7 +15,8 @@ const itemVariants = {
     scale: 0,
     y: 30,
   },
-  visible: {
+  // custom으로 받은 지연 시간만큼 기다렸다가 등장 (첫 화면에서는 순서대로, 새로 추가된 링크는 바로)
+  visible: (delay: number) => ({
     opacity: 1,
     scale: 1,
     y: 0,
@@ -27,9 +24,18 @@ const itemVariants = {
       type: "spring" as const,
       stiffness: 400,
       damping: 12,
+      delay,
     },
+  }),
+  exit: {
+    opacity: 0,
+    scale: 0,
+    transition: { duration: 0.2 },
   },
 };
+
+// 링크가 추가/삭제될 때 나머지 아이콘과 버튼이 부드럽게 밀려나도록 하는 레이아웃 전환
+const layoutTransition = { type: "spring" as const, stiffness: 400, damping: 30 };
 
 const hoverLinkAnimation = {
   scale: 1.15,
@@ -43,50 +49,76 @@ const hoverLinkAnimation = {
 
 export const BottomNavigator = () => {
   const { linkTarget } = useSettings();
+  const links = useNavLinks(); // 설정 > 링크 탭에서 관리
+  // 첫 화면에 있던 링크만 순서대로 등장시키고, 이후 추가된 링크는 지연 없이 바로 등장시킨다
+  const [initialLinkIds] = useState(() => new Set(links.map((link) => link.id)));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWidgetLibraryOpen, setIsWidgetLibraryOpen] = useState(false);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const closeWidgetLibrary = useCallback(() => setIsWidgetLibraryOpen(false), []);
 
   return (
     <motion.div
-      className="flex h-[80px] w-fit items-center justify-center rounded-[20px] px-[25px] glass bg-[#C4C4C4]/40" // 설정에서 배경 색상 변경 가능하게 만들기
-      initial="hidden"
-      animate="visible"
-      variants={{
-        hidden: {},
-        visible: {
-          transition: {
-            delayChildren: stagger(0.08),
-          },
-        },
-      }}
+      layout
+      transition={layoutTransition}
+      // 레이아웃 전환 중 크기가 바뀌어도 모서리가 찌그러지지 않도록 borderRadius는 style로 지정
+      style={{ borderRadius: 20 }}
+      className="flex h-[80px] w-fit items-center justify-center px-[25px] glass bg-[#C4C4C4]/40" // 설정에서 배경 색상 변경 가능하게 만들기
     >
       <section className="flex gap-3">
-        {ICON_URL.map((url, index) => (
-          <a key={index} href="https://example.com" target={linkTarget} rel="noopener noreferrer">
-            <motion.img
-              src={url}
-              alt={`Navigation ${index + 1}`}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              className="h-15 w-15 cursor-pointer rounded-[10px] object-cover"
+        <AnimatePresence mode="popLayout">
+          {links.map((link, index) => (
+            <motion.a
+              key={link.id}
+              href={link.href}
+              target={linkTarget}
+              rel="noopener noreferrer"
+              layout
+              custom={initialLinkIds.has(link.id) ? index * STAGGER_DELAY : 0}
               variants={itemVariants}
-              whileHover={hoverLinkAnimation}
-              whileTap={{
-                scale: 0.9,
-                y: 0,
-              }}
-            />
-          </a>
-        ))}
-        <div className="h-15 w-15 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 first-letter: flex items-center justify-center hover:cursor-pointer hover:bg-[#fefefe] duration-300">
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={{ layout: layoutTransition }}
+            >
+              <motion.img
+                src={link.imageUrl}
+                alt={link.href}
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                className="h-15 w-15 cursor-pointer rounded-[10px] object-cover"
+                whileHover={hoverLinkAnimation}
+                whileTap={{
+                  scale: 0.9,
+                  y: 0,
+                }}
+              />
+            </motion.a>
+          ))}
+        </AnimatePresence>
+        <motion.button
+          layout
+          transition={layoutTransition}
+          type="button"
+          aria-label="위젯 추가"
+          onClick={() => setIsWidgetLibraryOpen(true)}
+          className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-[10px] bg-[#C4C4C4]/10 transition-colors duration-300 hover:bg-[#fefefe]"
+        >
           <FaPlus className="h-full w-full p-3 text-[#C4C4C4]/80" />
-        </div>
-        <button type="button" aria-label="설정 열기" onClick={() => setIsSettingsOpen(true)}>
+        </motion.button>
+        <motion.button
+          layout
+          transition={layoutTransition}
+          type="button"
+          aria-label="설정 열기"
+          onClick={() => setIsSettingsOpen(true)}
+        >
           <PiSquaresFourFill className="h-15 w-15 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 p-3 text-[#C4C4C4]/80 hover:cursor-pointer hover:bg-[#fefefe] duration-300" />
-        </button>
+        </motion.button>
       </section>
       <AnimatePresence>{isSettingsOpen && <Settings onClose={closeSettings} />}</AnimatePresence>
+      <AnimatePresence>{isWidgetLibraryOpen && <WidgetLibrary onClose={closeWidgetLibrary} />}</AnimatePresence>
     </motion.div>
   );
 };
