@@ -52,14 +52,16 @@ const readSavedPositions = (): Record<string, Position> => {
   }
 };
 
-const snapPosition = (value: number, size: number, layout: LayoutOptions) => {
+const snapPosition = (value: number, size: number, containerLength: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
   if (!layout.gridSnap) return value;
 
+  // 그리드 선을 컨테이너 중앙 기준으로 배치해, 그리드 크기와 화면 크기에 관계없이 중앙이 항상 그리드 선 위에 오게 한다
+  const origin = containerLength / 2;
   const center = value + size / 2;
-  const snappedCenter = Math.round(center / layout.gridSize) * layout.gridSize;
+  const snappedCenter = origin + Math.round((center - origin) / layout.gridSize) * layout.gridSize;
 
-  return snappedCenter - size / 2;
+  return Math.round(snappedCenter - size / 2);
 };
 
 const isColliding = (a: Rect, b: Rect, gap: number) => {
@@ -91,8 +93,8 @@ const getBoundedPosition = (
 
   return clampPosition(
     {
-      x: snapPosition(position.x, node.offsetWidth, layout),
-      y: snapPosition(position.y, node.offsetHeight, layout),
+      x: snapPosition(position.x, node.offsetWidth, size.width, layout),
+      y: snapPosition(position.y, node.offsetHeight, size.height, layout),
     },
     max,
   );
