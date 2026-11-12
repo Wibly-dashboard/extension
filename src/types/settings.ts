@@ -24,3 +24,10 @@ export type ServiceToken = {
 
 // 연결된 서비스만 키로 존재한다
 export type TokenMap = Partial<Record<ServiceId, ServiceToken>>;
+
+// 하단 네비게이터에 표시되는 링크 아이콘
+export type NavLink = {
+  id: string;
+  imageUrl: string; // 아이콘 이미지 URL
+  href: string; // 이동할 웹 사이트 URL
+};
