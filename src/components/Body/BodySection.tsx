@@ -343,7 +343,9 @@ export const BodySection = () => {
   }, [widgets]);
 
   return (
-    <div ref={containerRef} className="relative min-h-[500px] w-full flex-1 overflow-hidden">
+    // 위젯 위치는 항상 영역 안으로 보정되므로 잘라낼 필요가 없다.
+    // overflow를 숨기면 영역 끝에 붙은 위젯의 선택 테두리(바깥 5px)가 잘려 위젯 테두리와 겹쳐 보인다
+    <div ref={containerRef} className="relative min-h-[500px] w-full flex-1">
       {widgets.map((widget) => (
         <WidgetItem
           key={widget.id}
