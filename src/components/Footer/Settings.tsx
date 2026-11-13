@@ -5,6 +5,7 @@ import { FaTimes, FaUndo } from "react-icons/fa";
 import { DEFAULT_SETTINGS, settingsStore } from "../../hooks/useSettings";
 import { navLinksStore } from "../../hooks/useNavLinks";
 import { tokenStore } from "../../hooks/useTokens";
+import { markNewsAsRead, useHasUnreadNews } from "../../hooks/useNewsRead";
 import { GeneralSection } from "../Settings/GeneralSection";
 import { HelpSection } from "../Settings/HelpSection";
 import { LinksSection } from "../Settings/LinksSection";
@@ -32,6 +33,12 @@ export const Settings = ({ onClose }: SettingsProps) => {
   const [tokens, setTokens] = useState(tokenStore.get);
   const [links, setLinks] = useState(navLinksStore.get);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const hasUnreadNews = useHasUnreadNews();
+
+  useEffect(() => {
+    // 새 소식 탭을 열면 읽음으로 표시 (저장 버튼과 관계없이 바로 반영)
+    if (tab === "news") markNewsAsRead();
+  }, [tab]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -78,7 +85,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
         role="dialog"
         aria-modal="true"
         aria-label="설정"
-        className="glass flex h-[680px] max-h-full w-[640px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
+        className="glass flex h-[760px] max-h-full w-[720px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
@@ -109,7 +116,9 @@ export const Settings = ({ onClose }: SettingsProps) => {
               className={`-mb-px cursor-pointer border-b-2 pb-2.5 text-sm transition-colors duration-200 ${
                 item.id === tab
                   ? "border-white font-semibold text-white"
-                  : "border-transparent text-white/60 hover:text-white"
+                  : item.id === "news" && hasUnreadNews
+                    ? "notReadNews border-transparent font-semibold"
+                    : "border-transparent text-white/60 hover:text-white"
               }`}
             >
               {item.label}
@@ -131,40 +140,42 @@ export const Settings = ({ onClose }: SettingsProps) => {
           {tab === "news" && <NewsSection />}
         </section>
 
-        {/* 저장 / 취소 섹션 */}
-        <section className="shrink-0 border-t border-white/15 px-7 py-4">
-          {saveError && <p className="mb-3 text-xs text-red-300">{saveError}</p>}
-          <div className="flex items-center justify-between gap-3">
-            {tab === "general" ? (
-              <button
-                type="button"
-                onClick={() => setSettings(DEFAULT_SETTINGS)}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/70 transition-colors duration-200 hover:bg-white/15 hover:text-white"
-              >
-                <FaUndo className="h-3 w-3" />
-                기본값으로 초기화
-              </button>
-            ) : (
-              <span />
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="cursor-pointer rounded-lg bg-white/15 px-4 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-white/25"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="cursor-pointer rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-400"
-              >
-                저장
-              </button>
+        {/* 저장 / 취소 섹션 (도움말·새 소식은 바꿀 값이 없으므로 표시하지 않음) */}
+        {tab !== "help" && tab !== "news" && (
+          <section className="shrink-0 border-t border-white/15 px-7 py-4">
+            {saveError && <p className="mb-3 text-xs text-red-300">{saveError}</p>}
+            <div className="flex items-center justify-between gap-3">
+              {tab === "general" ? (
+                <button
+                  type="button"
+                  onClick={() => setSettings(DEFAULT_SETTINGS)}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-300 transition-colors duration-200 hover:bg-white/15 hover:text-white"
+                >
+                  <FaUndo className="h-3 w-3" />
+                  기본값으로 초기화
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="cursor-pointer rounded-lg bg-white/15 px-4 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-white/25"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="cursor-pointer rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-400"
+                >
+                  저장
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </motion.div>
     </motion.div>,
     document.body,

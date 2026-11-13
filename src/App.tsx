@@ -1,8 +1,8 @@
 import { type CSSProperties } from "react";
-import { BodySection } from "./components/Body/BodySection";
-import { BottomNavigator } from "./components/Footer/BottomNavigator";
 import { useBlockZoom } from "./hooks/useBlockZoom";
 import { DEFAULT_BACKGROUND_URL, useSettings } from "./hooks/useSettings";
+import { BodySection } from "./components/Body/BodySection";
+import { BottomNavigator } from "./components/Footer/BottomNavigator";
 
 export const App = () => {
   useBlockZoom();
