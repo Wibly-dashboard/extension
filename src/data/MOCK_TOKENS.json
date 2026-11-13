@@ -1,8 +1,4 @@
 {
-  "spotify": {
-    "token": "mock-spotify-BQDx7Kp2mVn4Qw8ZrT1yLs9aHc3eUf6g",
-    "updatedAt": "2026-11-01T09:00:00.000Z"
-  },
   "google-calendar": {
     "token": "mock-google-ya29.a0AfH6SMBx3kJ8dPqW2nRv5tYz",
     "updatedAt": "2026-11-03T14:30:00.000Z"

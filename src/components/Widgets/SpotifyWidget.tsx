@@ -1,7 +1,7 @@
 import { FaPause, FaPlay, FaRandom, FaSpotify, FaStepBackward, FaStepForward } from "react-icons/fa";
 import { FaRepeat } from "react-icons/fa6";
 import { useSpotifyPlayback, type RepeatState } from "../../hooks/useSpotifyPlayback";
-import { useServiceToken } from "../../hooks/useTokens";
+import { getRefreshTokenLifetime, type SpotifyAuthError } from "../../hooks/spotifyAuth";
 import { MarqueeText } from "./MarqueeText";
 
 type BackgroundStyle = "glass" | "ghost" | "solid";
@@ -54,6 +54,8 @@ export type SpotifyPlayerViewProps = {
   backgroundStyle: BackgroundStyle;
   /** 재생 제어 실패 시 아티스트 자리에 대신 보여줄 안내 */
   errorMessage?: string | null;
+  /** 리프레시 토큰 기한 안내. 로고 옆 점과 툴팁으로 표시 */
+  tokenWarning?: string | null;
   onTogglePlay?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -73,6 +75,7 @@ export const SpotifyPlayerView = ({
   repeat,
   backgroundStyle,
   errorMessage,
+  tokenWarning,
   onTogglePlay,
   onNext,
   onPrevious,
@@ -170,8 +173,15 @@ export const SpotifyPlayerView = ({
       </div>
 
       {/* Spotify Logo */}
-      <div className="ml-1 flex h-full shrink-0 items-center">
+      <div className="relative ml-1 flex h-full shrink-0 items-center" title={tokenWarning ?? undefined}>
         <FaSpotify className="text-xl text-[#1DB954]" />
+        {tokenWarning && (
+          <span
+            role="status"
+            aria-label={tokenWarning}
+            className="absolute top-5 -right-1 h-2.5 w-2.5 rounded-full border border-black/40 bg-amber-400"
+          />
+        )}
       </div>
     </div>
   );
@@ -181,17 +191,40 @@ type SpotifyWidgetProps = {
   backgroundStyle: BackgroundStyle;
 };
 
-/** 설정 > 저장소의 Spotify 토큰으로 현재 재생 정보를 불러와 보여주는 위젯 */
+const AUTH_ERROR_MESSAGES: Record<SpotifyAuthError, { title: string; description: string }> = {
+  "invalid-refresh-token": {
+    title: "Refresh Token이 올바르지 않습니다",
+    description: "설정 > 저장소 > Spotify에서 새 Refresh Token을 등록해 주세요",
+  },
+  "invalid-client": {
+    title: "Client ID 또는 Client Secret이 올바르지 않습니다",
+    description: "설정 > 저장소 > Spotify에서 입력값을 확인해 주세요",
+  },
+  network: { title: "Spotify에 연결하지 못했습니다", description: "잠시 후 다시 시도합니다" },
+  unknown: { title: "토큰을 발급하지 못했습니다", description: "설정 > 저장소 > Spotify에서 토큰을 다시 등록해 주세요" },
+};
+
+/** 리프레시 토큰 기한(등록 후 6개월)이 가까워지거나 지났을 때 보여줄 안내 */
+const getTokenWarning = (registeredAt: string | undefined) => {
+  if (!registeredAt) return null;
+
+  const { status, daysLeft } = getRefreshTokenLifetime(registeredAt);
+  if (status === "expired") return "Refresh Token 등록 후 6개월이 지났습니다. 새 토큰을 등록해 주세요.";
+  if (status === "expiring") return `Refresh Token 기한이 ${daysLeft}일 남았습니다. 새 토큰을 등록해 주세요.`;
+
+  return null;
+};
+
+/** 설정 > 저장소 > Spotify의 리프레시 토큰으로 현재 재생 정보를 불러와 보여주는 위젯 */
 export const SpotifyWidget = ({ backgroundStyle }: SpotifyWidgetProps) => {
-  const token = useServiceToken("spotify");
-  const { playback, progressMs, controlError, ...controls } = useSpotifyPlayback(token);
+  const { playback, progressMs, controlError, registeredAt, ...controls } = useSpotifyPlayback();
 
   switch (playback.status) {
     case "no-token":
       return (
         <SpotifyMessage
           title="Spotify 연결이 필요합니다"
-          description="설정 > 저장소에서 토큰을 등록해 주세요"
+          description="설정 > 저장소 > Spotify에서 Refresh Token을 등록해 주세요"
           backgroundStyle={backgroundStyle}
         />
       );
@@ -203,11 +236,25 @@ export const SpotifyWidget = ({ backgroundStyle }: SpotifyWidgetProps) => {
           backgroundStyle={backgroundStyle}
         />
       );
+    case "auth-error": {
+      // 기한이 지난 토큰이 거부됐다면 '잘못된 토큰'이 아니라 '기한 만료'로 안내한다
+      const expired =
+        playback.reason === "invalid-refresh-token" &&
+        getRefreshTokenLifetime(playback.registeredAt).status === "expired";
+      const message = expired
+        ? {
+            title: "Refresh Token이 만료되었습니다 (등록 후 6개월)",
+            description: "설정 > 저장소 > Spotify에서 새 Refresh Token을 등록해 주세요",
+          }
+        : AUTH_ERROR_MESSAGES[playback.reason];
+
+      return <SpotifyMessage {...message} backgroundStyle={backgroundStyle} />;
+    }
     case "unauthorized":
       return (
         <SpotifyMessage
-          title="토큰이 만료되었거나 올바르지 않습니다"
-          description="설정 > 저장소에서 새 액세스 토큰을 입력해 주세요"
+          title="Spotify 인증에 실패했습니다"
+          description="설정 > 저장소 > Spotify에서 토큰을 다시 등록해 주세요"
           backgroundStyle={backgroundStyle}
         />
       );
@@ -248,6 +295,7 @@ export const SpotifyWidget = ({ backgroundStyle }: SpotifyWidgetProps) => {
           repeat={playback.repeat}
           backgroundStyle={backgroundStyle}
           errorMessage={controlError}
+          tokenWarning={getTokenWarning(registeredAt)}
           onTogglePlay={controls.togglePlay}
           onNext={controls.next}
           onPrevious={controls.previous}

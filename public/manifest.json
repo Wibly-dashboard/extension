@@ -1,13 +1,10 @@
 {
   "name": "Extension Dashboard",
-  "version": "0.2.1",
-  "permissions": ["storage"],
+  "version": "0.2.2",
+  "permissions": ["storage", "identity"],
+  "host_permissions": ["https://accounts.spotify.com/*", "https://api.spotify.com/*"],
   "manifest_version": 3,
   "chrome_url_overrides": {
     "newtab": "index.html"
-  },
-  "action": {
-    "default_title": "Extension Dashboard",
-    "default_popup": "index.html"
   }
 }
