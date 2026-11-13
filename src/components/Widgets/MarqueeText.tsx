@@ -10,9 +10,8 @@ type MarqueeTextProps = {
 };
 
 const MS_PER_CHARACTER = 150; // 글자 수에 비례해 한 바퀴 시간을 늘려 긴 텍스트도 비슷한 속도로 흐르게 한다
-const GAP_CLASS = "pr-8"; // 반복되는 텍스트 사이 간격 (각 복사본 뒤에 붙여 두 벌의 너비를 똑같이 맞춘다)
 
-/** 텍스트가 길면 옆으로 끊김 없이 계속 흐르게, 짧으면 그대로 보여준다 */
+// 텍스트가 길면 옆으로 끊김 없이 계속 흐르게, 짧으면 그대로 보여준다.
 export const MarqueeText = ({ text, minLength, isRunning = true, className = "" }: MarqueeTextProps) => {
   if (!isRunning || text.length < minLength) {
     return <span className={`block truncate ${className}`}>{text}</span>;
@@ -21,11 +20,11 @@ export const MarqueeText = ({ text, minLength, isRunning = true, className = "" 
   const style = { "--marquee-duration": `${text.length * MS_PER_CHARACTER}ms` } as CSSProperties;
 
   return (
-    <span className={`block overflow-hidden ${className}`} aria-label={text}>
+    <span className={`@container block overflow-hidden ${className}`} aria-label={text}>
       {/* 곡이 바뀌면 처음 위치부터 다시 흐르도록 key로 새로 만든다 */}
       <span key={text} className="flex w-max animate-marquee whitespace-nowrap" style={style} aria-hidden>
-        <span className={GAP_CLASS}>{text}</span>
-        <span className={GAP_CLASS}>{text}</span>
+        <span className="min-w-[100cqw] pr-8">{text}</span>
+        <span className="min-w-[100cqw] pr-8">{text}</span>
       </span>
     </span>
   );
