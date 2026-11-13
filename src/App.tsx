@@ -1,8 +1,8 @@
 import { useEffect, type CSSProperties } from "react";
-import { BodySection } from "./components/Body/BodySection";
-import { BottomNavigator } from "./components/Footer/BottomNavigator";
 import { useBlockZoom } from "./hooks/useBlockZoom";
 import { DEFAULT_BACKGROUND_URL, useSettings } from "./hooks/useSettings";
+import { BodySection } from "./components/Body/BodySection";
+import { BottomNavigator } from "./components/Footer/BottomNavigator";
 
 const value = "example";
 
@@ -20,15 +20,14 @@ export const App = () => {
         : `url("${background.type === "image" ? background.value : DEFAULT_BACKGROUND_URL}")`,
   } as CSSProperties;
 
+  // 크롬 확장 storage 테스트 코드
   useEffect(() => {
-    const storage = globalThis.chrome?.storage?.local;
-
-    if (!storage) {
-      return;
-    }
-
-    storage.set({ key: value }, () => {
+    chrome.storage.local.set({ testKey: value }, () => {
       console.log("Value is set to " + value);
+    });
+
+    chrome.storage.local.get(["testKey"], (result) => {
+      console.log("Value currently is " + result.testKey);
     });
   }, []);
 
