@@ -104,7 +104,7 @@ export const BottomNavigator = () => {
                 transition={{ layout: layoutTransition }}
                 whileDrag={dragLinkAnimation}
                 dragConstraints={linkGroupRef}
-                dragElastic={0.05}
+                dragElastic={0}
                 onPointerDownCapture={() => {
                   hasDraggedRef.current = false;
                 }}
