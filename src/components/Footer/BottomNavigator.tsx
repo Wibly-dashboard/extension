@@ -38,14 +38,13 @@ const itemVariants = {
 // 링크가 추가/삭제될 때 나머지 아이콘과 버튼이 부드럽게 밀려나도록 하는 레이아웃 전환
 const layoutTransition = { type: "spring" as const, stiffness: 400, damping: 30 };
 
-const hoverLinkAnimation = {
-  scale: 1.15,
-  y: -10,
-  transition: {
-    type: "spring" as const,
-    stiffness: 400,
-    damping: 10,
-  },
+const linkIconTransition = { type: "spring" as const, stiffness: 400, damping: 10 };
+
+// 아이콘 상태별 모습. motion의 whileTap은 드래그 중 손을 떼면 해제되지 않아(작아진 채 남음) 직접 상태를 관리한다
+const linkIconAnimation = {
+  rest: { scale: 1, y: 0 },
+  hover: { scale: 1.15, y: -10 },
+  pressed: { scale: 0.9, y: 0 },
 };
 
 // 아이콘을 잡고 옮길 때 살짝 띄워서 잡고 있다는 것을 보여준다
@@ -65,6 +64,11 @@ export const BottomNavigator = () => {
   const displayedLinks = draggingLinks ?? links;
   // 드래그로 위치를 옮긴 직후에는 링크가 열리지 않도록 막는다
   const hasDraggedRef = useRef(false);
+  // 링크 영역 밖(바 바깥이나 고정 버튼 위)으로 끌고 나가지 못하도록 드래그 범위를 제한한다
+  const linkGroupRef = useRef<HTMLUListElement>(null);
+  const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
+  const [pressedLinkId, setPressedLinkId] = useState<string | null>(null);
+  const releasePress = useCallback(() => setPressedLinkId(null), []);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWidgetLibraryOpen, setIsWidgetLibraryOpen] = useState(false);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
@@ -81,6 +85,7 @@ export const BottomNavigator = () => {
       <section className="flex gap-3">
         {/* 빠른 링크만 순서를 바꿀 수 있고, 위젯 추가·설정 버튼은 항상 뒤에 고정된다 */}
         <Reorder.Group
+          ref={linkGroupRef}
           axis="x"
           values={displayedLinks}
           onReorder={setDraggingLinks}
@@ -98,11 +103,14 @@ export const BottomNavigator = () => {
                 exit="exit"
                 transition={{ layout: layoutTransition }}
                 whileDrag={dragLinkAnimation}
+                dragConstraints={linkGroupRef}
+                dragElastic={0.05}
                 onPointerDownCapture={() => {
                   hasDraggedRef.current = false;
                 }}
                 onDragStart={() => {
                   hasDraggedRef.current = true;
+                  releasePress(); // 끌기 시작하면 눌림(작아짐) 상태를 풀고 드래그 모습만 보여준다
                 }}
                 onDragEnd={() => {
                   if (draggingLinks) navLinksStore.set(draggingLinks);
@@ -126,10 +134,23 @@ export const BottomNavigator = () => {
                     decoding="async"
                     draggable={false}
                     className="h-15 w-15 cursor-pointer rounded-[10px] object-cover"
-                    whileHover={hoverLinkAnimation}
-                    whileTap={{
-                      scale: 0.9,
-                      y: 0,
+                    animate={
+                      pressedLinkId === link.id
+                        ? linkIconAnimation.pressed
+                        : hoveredLinkId === link.id
+                          ? linkIconAnimation.hover
+                          : linkIconAnimation.rest
+                    }
+                    transition={linkIconTransition}
+                    onHoverStart={() => setHoveredLinkId(link.id)}
+                    onHoverEnd={() => setHoveredLinkId((id) => (id === link.id ? null : id))}
+                    onPointerDown={(event) => {
+                      if (event.button !== 0) return;
+
+                      setPressedLinkId(link.id);
+                      // 아이콘 밖에서 손을 떼더라도 눌림 상태가 풀리도록 window에서 감지한다
+                      window.addEventListener("pointerup", releasePress, { once: true });
+                      window.addEventListener("pointercancel", releasePress, { once: true });
                     }}
                   />
                 </a>
