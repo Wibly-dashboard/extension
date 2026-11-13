@@ -33,7 +33,6 @@
    - 압축해제 로드 시 ID는 **폴더 경로**로 정해집니다. `dist` 위치를 옮기거나 다른 PC에서 로드하면 ID가 바뀌므로 그 주소도 추가 등록해야 합니다.
 3. 개발 모드 앱이므로 로그인할 Spotify 계정의 이메일을 **User Management**에 추가합니다.
 4. **새 탭** → `설정 > 저장소 > Spotify` → `Spotify 로그인` → 로그인/동의하면 끝입니다.
-   - 확장 아이콘 팝업에서는 로그인 창이 열릴 때 팝업이 닫혀 실패하므로 새 탭에서 진행합니다.
    - 기본 Client ID(`SPOTIFY_CLIENT_ID`)와 PKCE를 사용하므로 Client Secret이 필요 없습니다. (`src/hooks/spotifyLogin.ts`)
 
 > 토큰을 직접 발급받아 쓰려면 `토큰 직접 입력`을 누르고 아래 `1-1` ~ `1-4`로 받은 Refresh Token을 입력합니다.
