@@ -42,10 +42,13 @@ export type SpotifyAuth = {
 
 export class SpotifyTokenError extends Error {
   readonly reason: SpotifyConnectError;
+  /** 원인 파악용 원문 메시지 (Chrome/Spotify가 돌려준 오류) */
+  readonly detail?: string;
 
-  constructor(reason: SpotifyConnectError) {
-    super(`[Spotify] token error: ${reason}`);
+  constructor(reason: SpotifyConnectError, detail?: string) {
+    super(`[Spotify] token error: ${reason}${detail ? ` (${detail})` : ""}`);
     this.reason = reason;
+    this.detail = detail;
   }
 }
 

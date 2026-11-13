@@ -11,7 +11,7 @@ import {
   type SpotifyAuthError,
   type SpotifyConnectError,
 } from "../../hooks/spotifyAuth";
-import { loginWithSpotify } from "../../hooks/spotifyLogin";
+import { getSpotifyRedirectUri, loginWithSpotify } from "../../hooks/spotifyLogin";
 
 const ICON_BUTTON =
   "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-white/70 transition-colors duration-200 hover:bg-white/15 hover:text-white";
@@ -33,6 +33,17 @@ const REGISTER_ERRORS: Record<SpotifyConnectError, string> = {
 
 const toErrorMessage = (error: unknown) =>
   REGISTER_ERRORS[error instanceof SpotifyTokenError ? error.reason : "unknown"];
+
+/** 로그인 실패 시 원인 원문과, Spotify Dashboard에 등록해야 할 Redirect URI를 덧붙인다 */
+const toLoginErrorMessage = (error: unknown) => {
+  const lines = [toErrorMessage(error)];
+  if (error instanceof SpotifyTokenError && error.detail) lines.push(`원인: ${error.detail}`);
+
+  const redirectUri = getSpotifyRedirectUri();
+  if (redirectUri) lines.push(`등록할 Redirect URI: ${redirectUri}`);
+
+  return lines.join("\n");
+};
 
 const SAVED_ERRORS: Partial<Record<SpotifyAuthError, string>> = {
   "invalid-refresh-token": "Refresh Token이 잘못되었거나 만료되었습니다. Spotify에 다시 로그인하거나 새 토큰을 등록해 주세요.",
@@ -98,7 +109,8 @@ export const SpotifyTokenCard = () => {
     try {
       await loginWithSpotify();
     } catch (error) {
-      setLoginError(toErrorMessage(error));
+      console.error(error);
+      setLoginError(toLoginErrorMessage(error));
     } finally {
       setLoggingIn(false);
     }
@@ -202,7 +214,7 @@ export const SpotifyTokenCard = () => {
         )}
       </div>
 
-      {loginError && !isEditing && <p className="mt-3 text-xs text-red-300">{loginError}</p>}
+      {loginError && !isEditing && <p className="mt-3 text-xs break-all whitespace-pre-line text-red-300 select-text">{loginError}</p>}
 
       {isEditing ? (
         <form

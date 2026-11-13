@@ -30,7 +30,7 @@ type SpotifyMessageProps = {
 };
 
 /** 연결 필요, 토큰 만료 등 재생 정보를 보여줄 수 없을 때의 안내 */
-const SpotifyMessage = ({ title, description, backgroundStyle }: SpotifyMessageProps) => (
+export const SpotifyMessage = ({ title, description, backgroundStyle }: SpotifyMessageProps) => (
   <div
     className={`flex h-[80px] w-[464px] items-center gap-3 rounded-xl ${backgroudStyles[backgroundStyle]} px-4 font-pretendard`}
   >
