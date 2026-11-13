@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaEye, FaEyeSlash, FaPen, FaTrash } from "react-icons/fa";
 import { SERVICES } from "../../hooks/useTokens";
 import type { ServiceId, TokenMap } from "../../types/settings";
+import { SpotifyTokenCard } from "./SpotifyTokenCard";
 
 type StorageSectionProps = {
   tokens: TokenMap;
@@ -45,6 +46,9 @@ export const StorageSection = ({ tokens, onChange }: StorageSectionProps) => {
 
       <ul className="flex flex-col gap-3">
         {SERVICES.map((service) => {
+          // Spotify는 Refresh Token으로 액세스 토큰을 자동 발급하므로 별도 카드에서 관리한다 (chrome.storage.local)
+          if (service.id === "spotify") return <SpotifyTokenCard key={service.id} />;
+
           const saved = tokens[service.id];
           const isEditing = editing?.id === service.id;
 

@@ -2,15 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable, { type DraggableData } from "react-draggable";
 import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
-import { DigitalClock } from "../Widgets/DigitalClock";
-import { LinkBlock } from "../Widgets/LinkBlock";
-import MOCK_LINKS from "../../data/MOCK_LINKS.json";
-import { SpotifyWidget } from "../Widgets/SpotifyWidget";
-import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
-import { TodoWidget } from "../Widgets/TodoListWidget";
-import { DDayWidget } from "../Widgets/DDayWidget";
 import { useSettings } from "../../hooks/useSettings";
-import { deleteWidget, useAddedWidgets, useRemovedDefaultWidgets } from "../../hooks/useAddedWidgets";
+import { deleteWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import { findCatalogItem } from "../WidgetLibrary/widgetCatalog";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
@@ -49,79 +42,6 @@ const CENTER_SNAP_THRESHOLD = 15;
 // 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
 const STORAGE_KEY = "dashboard-widgets-v2";
 
-const initialWidgets: Widget[] = [
-  // 초기 위젯 배열
-  // position: REFERENCE_SIZE 기준 픽셀 좌표 (아래에서 비율로 변환해 사용)
-
-  {
-    id: "clock",
-    name: "디지털 시계",
-    component: <DigitalClock />,
-    position: { x: 1065, y: 7.5 },
-  },
-  {
-    id: "todo",
-    name: "할 일 목록",
-    component: <TodoWidget />,
-    position: { x: 2145, y: 260 },
-  },
-  ...MOCK_LINKS.map((link, index) => {
-    const positions = [
-      { x: 280, y: 900 },
-      { x: 140, y: 900 },
-      { x: 70, y: 900 },
-      { x: 0, y: 900 },
-      { x: 350, y: 900 },
-      { x: 210, y: 900 },
-      { x: 490, y: 900 },
-      { x: 420, y: 900 },
-    ];
-
-    return {
-      id: `link-${index}`,
-      name: "링크",
-      component: <LinkBlock imageUrl={link.imageUrl} href={link.href} />,
-      position: positions[index] ?? { x: 0, y: 900 },
-    };
-  }),
-  {
-    id: "spotify",
-    name: "Spotify",
-    component: (
-      <SpotifyWidget
-        albumCoverUrl={
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzL2JHMmJrHtM03_BlEtYokUjk96e3bP5NwsyIfzZEgfrgdIEo07m4c8c&s=10"
-        }
-        trackTitle={"Touch The Sky"}
-        artistName={"Kanye West"}
-        currentTime={"0:00"}
-        totalTime={"3:57"}
-        progressPercentage={35}
-        backgroundStyle={"glass"}
-      />
-    ),
-    position: { x: 1033, y: 1050 },
-  },
-  {
-    id: "calendar",
-    name: "캘린더",
-    component: <GoogleCalendarWidget />,
-    position: { x: 0, y: 290 },
-  },
-  {
-    id: "DDay",
-    name: "D-Day",
-    component: <DDayWidget title={"프로젝트 출시"} targetDate={"2026-10-01"} startDate={"2026-10-01"} />,
-    position: { x: 2195, y: 570 },
-  },
-];
-
-// 기본 위젯의 위치를 비율로 변환 (화면 크기와 무관한 저장 형식)
-const defaultWidgets: Widget[] = initialWidgets.map((widget) => ({
-  ...widget,
-  position: toRatio(widget.position, REFERENCE_SIZE),
-}));
-
 const readSavedPositions = (): Record<string, Position> => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -132,14 +52,16 @@ const readSavedPositions = (): Record<string, Position> => {
   }
 };
 
-const snapPosition = (value: number, size: number, layout: LayoutOptions) => {
+const snapPosition = (value: number, size: number, containerLength: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
   if (!layout.gridSnap) return value;
 
+  // 그리드 선을 컨테이너 중앙 기준으로 배치해, 그리드 크기와 화면 크기에 관계없이 중앙이 항상 그리드 선 위에 오게 한다
+  const origin = containerLength / 2;
   const center = value + size / 2;
-  const snappedCenter = Math.round(center / layout.gridSize) * layout.gridSize;
+  const snappedCenter = origin + Math.round((center - origin) / layout.gridSize) * layout.gridSize;
 
-  return snappedCenter - size / 2;
+  return Math.round(snappedCenter - size / 2);
 };
 
 const isColliding = (a: Rect, b: Rect, gap: number) => {
@@ -171,8 +93,8 @@ const getBoundedPosition = (
 
   return clampPosition(
     {
-      x: snapPosition(position.x, node.offsetWidth, layout),
-      y: snapPosition(position.y, node.offsetHeight, layout),
+      x: snapPosition(position.x, node.offsetWidth, size.width, layout),
+      y: snapPosition(position.y, node.offsetHeight, size.height, layout),
     },
     max,
   );
@@ -268,24 +190,27 @@ export const BodySection = () => {
   const [editingId, setEditingId] = useState<string | null>(null); // 편집 창이 열린 위젯 ID
   const closeEditor = useCallback(() => setEditingId(null), []);
   const addedWidgets = useAddedWidgets(); // 위젯 라이브러리에서 추가한 위젯
-  const removedDefaultIds = useRemovedDefaultWidgets(); // 사용자가 삭제한 기본 위젯
   const [savedPositions, setSavedPositions] = useState(readSavedPositions); // 사용자가 옮긴 위젯의 비율 위치
 
-  const widgets = useMemo<Widget[]>(() => {
-    // 기본 위젯 + 라이브러리 위젯을 합치고, 사용자가 옮긴 위치가 있으면 그 위치를 사용
-    const libraryWidgets = addedWidgets.flatMap((added) => {
-      const item = findCatalogItem(added.type);
+  const widgets = useMemo<Widget[]>(
+    () =>
+      // 위젯 라이브러리에서 추가한 위젯만 표시하고, 사용자가 옮긴 위치가 있으면 그 위치를 사용
+      addedWidgets.flatMap((added) => {
+        const item = findCatalogItem(added.type);
 
-      return item ? [{ id: added.id, name: item.name, component: item.render(), position: added.position }] : [];
-    });
-
-    const visibleDefaults = defaultWidgets.filter((widget) => !removedDefaultIds.includes(widget.id));
-
-    return [...visibleDefaults, ...libraryWidgets].map((widget) => ({
-      ...widget,
-      position: savedPositions[widget.id] ?? widget.position,
-    }));
-  }, [addedWidgets, removedDefaultIds, savedPositions]);
+        return item
+          ? [
+              {
+                id: added.id,
+                name: item.name,
+                component: item.render(),
+                position: savedPositions[added.id] ?? added.position,
+              },
+            ]
+          : [];
+      }),
+    [addedWidgets, savedPositions],
+  );
 
   const findAvailablePosition = (
     id: string,
@@ -420,7 +345,9 @@ export const BodySection = () => {
   }, [widgets]);
 
   return (
-    <div ref={containerRef} className="relative min-h-[500px] w-full flex-1 overflow-hidden">
+    // 위젯 위치는 항상 영역 안으로 보정되므로 잘라낼 필요가 없다.
+    // overflow를 숨기면 영역 끝에 붙은 위젯의 선택 테두리(바깥 5px)가 잘려 위젯 테두리와 겹쳐 보인다
+    <div ref={containerRef} className="relative min-h-[500px] w-full flex-1">
       {widgets.map((widget) => (
         <WidgetItem
           key={widget.id}

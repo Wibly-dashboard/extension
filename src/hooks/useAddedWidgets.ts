@@ -30,24 +30,7 @@ export const removeWidget = (type: WidgetType) => {
   addedWidgetsStore.set(addedWidgetsStore.get().filter((widget) => widget.type !== type));
 };
 
-const parseIds = (saved: unknown): string[] =>
-  Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : [];
-
-// 사용자가 삭제한 기본 위젯 ID 목록 (기본 위젯은 코드에 고정돼 있으므로 숨김 목록으로 관리)
-export const removedDefaultWidgetsStore = createLocalStore<string[]>("dashboard-removed-default-widgets", parseIds);
-
-/** 삭제된 기본 위젯 ID 목록 */
-export const useRemovedDefaultWidgets = () => useLocalStore(removedDefaultWidgetsStore);
-
-/** 대시보드에 놓인 위젯을 삭제한다. 라이브러리 위젯은 목록에서 빼고, 기본 위젯은 숨김 목록에 넣는다 */
+/** 대시보드에 놓인 위젯을 삭제한다 */
 export const deleteWidget = (id: string) => {
-  const added = addedWidgetsStore.get();
-
-  if (added.some((widget) => widget.id === id)) {
-    addedWidgetsStore.set(added.filter((widget) => widget.id !== id));
-    return;
-  }
-
-  const removed = removedDefaultWidgetsStore.get();
-  if (!removed.includes(id)) removedDefaultWidgetsStore.set([...removed, id]);
+  addedWidgetsStore.set(addedWidgetsStore.get().filter((widget) => widget.id !== id));
 };

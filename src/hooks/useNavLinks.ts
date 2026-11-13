@@ -1,13 +1,11 @@
 import type { NavLink } from "../types/settings";
 import { createLocalStore, useLocalStore } from "./localStore";
 
-export const DEFAULT_NAV_LINKS: NavLink[] = [
-  "https://assets.icon.museum/icons/45e50a6e-4859-4462-b41a-5f58f3aeeef5.png",
-  "https://assets.icon.museum/icons/f4d74646-090f-4068-9d39-553a14373389.png",
-  "https://assets.icon.museum/icons/32434c98-7fd4-437e-994e-7a73155a0012.png",
-  "https://assets.icon.museum/icons/9851e99f-2d59-46d4-8945-a5439897dc22.png",
-  "https://assets.icon.museum/icons/334a501e-b555-42bd-a170-658c17dd5fee.jpg",
-].map((imageUrl, index) => ({ id: `default-${index}`, imageUrl, href: "https://example.com" }));
+export const DEFAULT_NAV_LINKS: NavLink[] = ["https://ko-fi.com/apple-touch-icon.png"].map((imageUrl, index) => ({
+  id: `default-${index}`,
+  imageUrl,
+  href: "https://ko-fi.com/hoya76",
+}));
 
 const isNavLink = (value: unknown): value is NavLink => {
   if (!value || typeof value !== "object") return false;

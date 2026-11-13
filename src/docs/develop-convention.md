@@ -8,11 +8,20 @@
 
 - `main` : 제품이 정상적으로 동작하며 출시가 완료된 브랜치
 - `develop` : 다음 버전의 제품 출시를 위한 개발 브랜치 (개발 통합이 되는 곳)
-- `feat/기능 이름` : 기능을 개발하기 위한 브랜치 (주로 하나의 기능을 다룸)
+- `feat/기능 이름` : 기능을 개발하기 위한 브랜치 (설정, 위젯 속도 등)
+- `widget/위젯 이름` : 위젯을 개발하기 위한 브랜치
 - `hotfix` : main 브랜치에서 발생한 버그를 수정하기 위한 브랜치
 
 개발 중 발생한 버그는 [ISSUE 생성] -> [새 브랜치 생성] -> [브랜치에서 작업] 순으로 진행합니다.<br>
 수정된 버그는 `develop` 브랜치와 병합합니다.
+
+```mermaid
+flowchart LR
+develop[개발 브랜치] -- 위젯 생성 & 수정 --> widget[widget 브랜치] -- 병합 --> develop
+develop -- 기능 생성 & 수정 --> feature[feature 브랜치] -- 병합 --> develop
+develop -- 출시 완료 --> main[main 브랜치]
+main -- 버그 발생 --> hoxfix[hotfix 브랜치] -- 버그 수정 --> main
+```
 
 ## 폴더 구조
 
