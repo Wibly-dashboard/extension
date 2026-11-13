@@ -47,15 +47,16 @@ export const loginWithSpotify = async () => {
   let responseUrl: string | undefined;
   try {
     responseUrl = await chrome.identity.launchWebAuthFlow({ url: authorizeUrl.toString(), interactive: true });
-  } catch {
+  } catch (error) {
     // 창을 닫음 / 동의 거부 / Redirect URI 미등록(Spotify가 오류 페이지를 보여 창을 닫게 됨)
-    throw new SpotifyTokenError("login-cancelled");
+    throw new SpotifyTokenError("login-cancelled", error instanceof Error ? error.message : String(error));
   }
 
   const params = responseUrl ? new URL(responseUrl).searchParams : null;
   const code = params?.get("code");
 
-  if (!params || params.get("error") || !code) throw new SpotifyTokenError("login-cancelled");
+  if (!params || params.get("error") || !code)
+    throw new SpotifyTokenError("login-cancelled", params?.get("error") ?? "응답에 code가 없습니다");
   if (params.get("state") !== state) throw new SpotifyTokenError("state-mismatch");
 
   const token = await postSpotifyToken(
