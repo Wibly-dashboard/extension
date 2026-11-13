@@ -4,7 +4,7 @@ import { createLocalStore, useLocalStore } from "./localStore";
 
 // 저장소에서 관리하는 외부 API 서비스 목록
 export const SERVICES: { id: ServiceId; name: string; description: string }[] = [
-  { id: "spotify", name: "Spotify", description: "Spotify 위젯에서 재생 정보를 불러올 때 사용" },
+  { id: "spotify", name: "Spotify", description: "Spotify 위젯에서 재생 정보를 불러올 때 사용 (spotifyAuth.ts에서 별도 관리)" },
   { id: "google-calendar", name: "Google Calendar", description: "캘린더 위젯에서 일정을 불러올 때 사용" },
 ];
 

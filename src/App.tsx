@@ -1,10 +1,8 @@
-import { useEffect, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import { BodySection } from "./components/Body/BodySection";
 import { BottomNavigator } from "./components/Footer/BottomNavigator";
 import { useBlockZoom } from "./hooks/useBlockZoom";
 import { DEFAULT_BACKGROUND_URL, useSettings } from "./hooks/useSettings";
-
-const value = "example";
 
 export const App = () => {
   useBlockZoom();
@@ -19,18 +17,6 @@ export const App = () => {
         ? "none"
         : `url("${background.type === "image" ? background.value : DEFAULT_BACKGROUND_URL}")`,
   } as CSSProperties;
-
-  useEffect(() => {
-    const storage = globalThis.chrome?.storage?.local;
-
-    if (!storage) {
-      return;
-    }
-
-    storage.set({ key: value }, () => {
-      console.log("Value is set to " + value);
-    });
-  }, []);
 
   return (
     <main
