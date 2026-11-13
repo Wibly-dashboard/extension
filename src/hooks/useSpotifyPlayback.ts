@@ -71,7 +71,11 @@ const fetchPlayback = async (): Promise<SpotifyPlayback> => {
 
   if (response.status === 204) return { status: "inactive" };
   if (response.status === 401) return { status: "unauthorized" };
-  if (response.status === 403) return { status: "forbidden" };
+  if (response.status === 403) {
+    // Spotify가 응답 본문에 구체적인 원인(미등록 사용자, scope 부족 등)을 담아 보낸다
+    console.warn("[Spotify] 403 응답:", await response.text().catch(() => ""));
+    return { status: "forbidden" };
+  }
   if (!response.ok) return { status: "error" };
 
   const data = (await response.json()) as PlayerResponse;

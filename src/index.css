@@ -2,8 +2,7 @@
 
 @font-face {
   font-family: "jejudoldam";
-  src: url("./assets/fonts/jejudoldam/EF_jejudoldam(OTF).otf")
-    format("opentype");
+  src: url("./assets/fonts/jejudoldam/EF_jejudoldam(OTF).otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -12,6 +11,18 @@
 @theme {
   --font-jejudoldam: "jejudoldam", sans-serif;
   --font-pretendard: Arial, sans-serif;
+
+  /* 같은 텍스트 두 벌을 이어 붙인 트랙을 정확히 한 벌(-50%)만큼 옮기고 반복 → 이음새 없이 흐름 */
+  --animate-marquee: marquee var(--marquee-duration, 10s) linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 body {
