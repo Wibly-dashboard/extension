@@ -23,7 +23,9 @@ const meta: Meta<typeof SpotifyPlayerView> = {
   },
   argTypes: {
     repeat: { control: "inline-radio", options: ["off", "context", "track"] },
-    backgroundStyle: { control: "inline-radio", options: ["glass", "ghost", "solid"] },
+    backgroundStyle: { control: "inline-radio", options: ["glass", "ghost", "material"] },
+    // 앨범 색상 오버레이는 material 스타일에서만 그려지므로, 그때만 컨트롤을 보여준다
+    albumCoverColor: { control: "color", if: { arg: "backgroundStyle", eq: "material" } },
   },
 };
 
@@ -46,6 +48,11 @@ export const Listening: Story = {
 
 export const ShuffleAndRepeat: Story = {
   args: { progressMs: 83000, isPlaying: true, shuffle: true, repeat: "track" },
+};
+
+/** material: 카드 배경 이미지 위에 앨범 커버 색상을 40% 불투명도로 덮는다 (Controls의 albumCoverColor로 색 변경) */
+export const Material: Story = {
+  args: { progressMs: 83000, isPlaying: true, backgroundStyle: "material", albumCoverColor: "#452828" },
 };
 
 /** 18글자 이상이면 제목/가수가 옆으로 흐른다 */
@@ -82,7 +89,10 @@ export const TokenExpired: Story = {
 
 // ---------- 안내 화면 (연결/토큰 오류) ----------
 
-export const NoToken = message("Spotify 연결이 필요합니다", "설정 > 저장소 > Spotify에서 Refresh Token을 등록해 주세요");
+export const NoToken = message(
+  "Spotify 연결이 필요합니다",
+  "설정 > 저장소 > Spotify에서 Refresh Token을 등록해 주세요",
+);
 
 export const InvalidRefreshToken = message(
   "Refresh Token이 올바르지 않습니다",

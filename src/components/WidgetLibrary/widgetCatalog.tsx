@@ -59,7 +59,7 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: FaSpotify,
     color: "text-green-200",
     background: "bg-green-400/20",
-    render: () => <SpotifyWidget backgroundStyle="glass" />,
+    render: () => <SpotifyWidget backgroundStyle="material" />,
   },
   {
     type: "dday",
