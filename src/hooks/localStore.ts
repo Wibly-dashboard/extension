@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { readItem, subscribeItem, writeItem } from "./storage";
 
 export type LocalStore<T> = {
   get: () => T;
@@ -7,46 +8,52 @@ export type LocalStore<T> = {
   subscribe: (listener: () => void) => () => void;
 };
 
-// localStorage에 보관되는 전역 상태. 값이 바뀌면 구독 중인 모든 컴포넌트가 새로고침 없이 다시 렌더링된다.
+// 동기로 읽고 쓰는 전역 상태. 값이 바뀌면 구독 중인 모든 컴포넌트가 새로고침 없이 다시 렌더링된다.
+// 확장 프로그램에서는 chrome.storage.local, 개발 서버(localhost)에서는 localStorage에 저장된다 (storage.ts)
 export const createLocalStore = <T>(key: string, parse: (saved: unknown) => T): LocalStore<T> => {
-  const read = (raw: string | null): T => {
+  const read = (saved: unknown): T => {
     try {
-      return parse(raw === null ? undefined : JSON.parse(raw));
+      return parse(saved);
     } catch {
       return parse(undefined);
     }
   };
 
-  const readStorage = () => {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  };
-
-  let state = read(readStorage());
+  // 확장 프로그램에서는 initStorage()가 끝난 뒤 캐시를 읽어야 하므로 처음 사용할 때 읽는다
+  let state: T;
+  let loaded = false;
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach((listener) => listener());
 
-  // 다른 탭에서 설정을 바꾼 경우에도 반영
-  if (typeof window !== "undefined") {
-    window.addEventListener("storage", (event) => {
-      if (event.key !== key) return;
+  const get = () => {
+    if (!loaded) {
+      state = read(readItem(key));
+      loaded = true;
+    }
 
-      state = read(event.newValue);
-      notify();
-    });
-  }
+    return state;
+  };
+
+  // 다른 탭에서 설정을 바꾼 경우에도 반영
+  subscribeItem(key, (saved) => {
+    state = read(saved);
+    loaded = true;
+    notify();
+  });
 
   return {
-    get: () => state,
+    get,
     set: (next) => {
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch {
-        return false;
-      }
+      const previous = get();
+      const saved = writeItem(key, next, () => {
+        // 브라우저 저장소에 비동기로 저장하다 실패하면 이전 값으로 되돌린다
+        if (state !== next) return;
+
+        state = previous;
+        notify();
+      });
+
+      if (!saved) return false;
 
       state = next;
       notify();

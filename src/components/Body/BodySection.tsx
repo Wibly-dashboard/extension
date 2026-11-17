@@ -4,6 +4,7 @@ import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
 import { deleteWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
+import { createLocalStore } from "../../hooks/localStore";
 import { findCatalogItem } from "../WidgetLibrary/widgetCatalog";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
@@ -42,15 +43,12 @@ const CENTER_SNAP_THRESHOLD = 15;
 // 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
 const STORAGE_KEY = "dashboard-widgets-v2";
 
-const readSavedPositions = (): Record<string, Position> => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+// 확장 프로그램에서는 chrome.storage.local, 개발 서버에서는 localStorage에 저장된다
+const positionsStore = createLocalStore<Record<string, Position>>(STORAGE_KEY, (saved) =>
+  saved && typeof saved === "object" ? (saved as Record<string, Position>) : {},
+);
 
-    return saved ? (JSON.parse(saved) as Record<string, Position>) : {};
-  } catch {
-    return {};
-  }
-};
+const readSavedPositions = () => positionsStore.get();
 
 const snapPosition = (value: number, size: number, containerLength: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
@@ -338,10 +336,10 @@ export const BodySection = () => {
   const editingWidget = widgets.find((widget) => widget.id === editingId);
 
   useEffect(() => {
-    // 위젯 위치 변경 시 localStorage에 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
+    // 위젯 위치 변경 시 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
     const positions = Object.fromEntries(widgets.map((widget) => [widget.id, widget.position]));
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+    positionsStore.set(positions);
   }, [widgets]);
 
   return (
