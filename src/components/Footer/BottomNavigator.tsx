@@ -170,7 +170,8 @@ export const BottomNavigator = () => {
           axis="x"
           values={displayedLinks}
           onReorder={setDraggingLinks}
-          className="relative flex gap-3"
+          // 링크가 하나도 없으면 빈 그룹이 gap을 차지해 왼쪽 여백이 커 보이므로 숨긴다 (마지막 링크의 exit 애니메이션이 끝난 뒤 비게 됨)
+          className="relative flex gap-3 empty:hidden"
         >
           <AnimatePresence mode="popLayout">
             {displayedLinks.map((link, index) => (
