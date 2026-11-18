@@ -60,7 +60,7 @@ type SpotifyMessageProps = {
 /** 연결 필요, 토큰 만료 등 재생 정보를 보여줄 수 없을 때의 안내 */
 export const SpotifyMessage = ({ title, description, backgroundStyle }: SpotifyMessageProps) => (
   <div
-    className={`relative isolate flex h-[80px] w-[464px] items-center gap-3 overflow-hidden rounded-xl ${backgroudStyles[backgroundStyle]} px-4 font-pretendard`}
+    className={`relative isolate flex h-[80px] w-[464px] items-center gap-3 overflow-hidden rounded-2xl ${backgroudStyles[backgroundStyle]} px-4 font-pretendard`}
   >
     {backgroundStyle === "material" && <MaterialBackground />}
     <FaSpotify className="shrink-0 text-3xl text-[#1DB954]" />
@@ -119,7 +119,7 @@ export const SpotifyPlayerView = ({
 
   return (
     <div
-      className={`relative isolate flex h-[80px] w-[464px] items-center gap-3 overflow-hidden rounded-xl ${backgroudStyles[backgroundStyle]} px-3 text-black font-pretendard`}
+      className={`relative isolate flex h-[80px] w-[464px] items-center gap-3 overflow-hidden rounded-2xl ${backgroudStyles[backgroundStyle]} px-3 text-black font-pretendard`}
     >
       {backgroundStyle === "material" && <MaterialBackground overlayColor={overlayColor} />}
       {/* Album Cover */}
