@@ -2,13 +2,22 @@ import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import { FaSpotify } from "react-icons/fa";
 import { MdAccessTime, MdCalendarMonth, MdHourglassBottom, MdImage, MdTaskAlt } from "react-icons/md";
-import type { WidgetType } from "../../types/widget";
+import type { WidgetOptions, WidgetType } from "../../types/widget";
 import { DDayWidget } from "../Widgets/DDayWidget";
 import { DigitalClock } from "../Widgets/DigitalClock";
 import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { ImageBlock } from "../Widgets/ImageBlock";
 import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { TodoWidget } from "../Widgets/TodoListWidget";
+import { BACKGROUND_STYLE_LABELS, BACKGROUND_STYLES, parseBackgroundStyle } from "../Widgets/spotifyBackgroundStyle";
+import { OptionSelector } from "../WidgetEditor/OptionSelector";
+
+export type WidgetEditorFieldsProps = {
+  /** 현재 저장된 위젯 옵션 */
+  options: WidgetOptions;
+  /** 바꾼 옵션만 넘기면 기존 옵션에 합쳐 저장된다 */
+  onChange: (options: WidgetOptions) => void;
+};
 
 export type WidgetCatalogItem = {
   type: WidgetType;
@@ -19,8 +28,10 @@ export type WidgetCatalogItem = {
   color: string;
   /** 작은 아이콘 배경 색 (Tailwind bg-* 클래스) */
   background: string;
-  /** 대시보드에 렌더링할 위젯 */
-  render: () => ReactNode;
+  /** 대시보드에 렌더링할 위젯 (편집 창에서 저장한 옵션을 받는다) */
+  render: (options: WidgetOptions) => ReactNode;
+  /** 편집 창에 표시할 편집 항목. 없으면 편집할 항목이 없다는 안내가 표시된다 */
+  editor?: (props: WidgetEditorFieldsProps) => ReactNode;
 };
 
 // 위젯 라이브러리에 노출되는 위젯 목록. 새 위젯은 여기에 항목을 추가하면 된다
@@ -59,7 +70,16 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: FaSpotify,
     color: "text-green-200",
     background: "bg-green-400/20",
-    render: () => <SpotifyWidget backgroundStyle="material" />,
+    render: (options) => <SpotifyWidget backgroundStyle={parseBackgroundStyle(options.backgroundStyle)} />,
+    editor: ({ options, onChange }) => (
+      <OptionSelector
+        label="배경 스타일"
+        options={BACKGROUND_STYLES}
+        optionLabels={BACKGROUND_STYLE_LABELS}
+        value={parseBackgroundStyle(options.backgroundStyle)}
+        onChange={(backgroundStyle) => onChange({ backgroundStyle })}
+      />
+    ),
   },
   {
     type: "dday",

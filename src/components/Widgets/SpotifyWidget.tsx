@@ -2,19 +2,23 @@ import { FaPause, FaPlay, FaRandom, FaSpotify, FaStepBackward, FaStepForward } f
 import { FaRepeat } from "react-icons/fa6";
 import { useSpotifyPlayback, type RepeatState } from "../../hooks/useSpotifyPlayback";
 import { getRefreshTokenLifetime, type SpotifyAuthError } from "../../hooks/spotifyAuth";
+import { useAlbumColor } from "../../hooks/useAlbumColor";
 import { MarqueeText } from "./MarqueeText";
 import spotifyCardBackground from "../../assets/imgs/spotify-card-background.png";
-
-type BackgroundStyle = "glass" | "ghost" | "material";
+import type { BackgroundStyle } from "./spotifyBackgroundStyle";
 
 const backgroudStyles: Record<BackgroundStyle, string> = {
   glass: "bg-white/[0.15] backdrop-blur-[12px] backdrop-saturate-[120%] group-text-white",
-  ghost: "bg-[#fefefe]/[100]",
+  // 배경 없이 내용만 표시
+  ghost: "bg-transparent",
   // material은 배경 이미지(+앨범 색상 오버레이)를 MaterialBackground로 깐다
   material: "",
 };
 
-/** material 스타일 배경: 카드 배경 이미지 위에 앨범 색상을 40% 불투명도로 덮는다 (내용 뒤에 깔리도록 -z-10) */
+/**
+ * material 스타일 배경: 카드 배경 이미지 위에 앨범 색상을 40% 불투명도로 덮는다 (내용 뒤에 깔리도록 -z-10)
+ * 곡이 바뀌어 색이 달라지면 background-color 트랜지션으로 부드럽게 바뀌고, 처음 색이 잡힐 때는 페이드인한다
+ */
 const MaterialBackground = ({ overlayColor }: { overlayColor?: string }) => (
   <>
     <img
@@ -26,13 +30,13 @@ const MaterialBackground = ({ overlayColor }: { overlayColor?: string }) => (
       // 원본 카드처럼 그라데이션 전체(어두운 모서리 포함)가 보이도록 늘려서 채운다
       className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-fill"
     />
-    {overlayColor && (
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{ backgroundColor: overlayColor, opacity: 0.4 }} // tailwind에서 opacity를 동적으로 적용할 수 없어서 style로 적용
-      />
-    )}
+    {/* 색이 없을 때도 요소를 남겨 둬야 처음 색이 들어올 때 트랜지션이 동작한다 */}
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 -z-10 transition-[background-color,opacity] duration-700 ease-in-out"
+      // tailwind에서 동적 색/opacity를 적용할 수 없어서 style로 적용
+      style={{ backgroundColor: overlayColor ?? "transparent", opacity: overlayColor ? 0.4 : 0 }}
+    />
   </>
 );
 
@@ -77,7 +81,7 @@ export type SpotifyPlayerViewProps = {
   shuffle: boolean;
   repeat: RepeatState;
   backgroundStyle: BackgroundStyle;
-  /** 앨범 커버 색상. material 스타일일 때 배경 이미지 위에 40% 불투명도로 덮인다 (TODO: color-thief로 커버에서 추출) */
+  /** 앨범 커버 색상. material 스타일일 때 배경 이미지 위에 40% 불투명도로 덮인다 (SpotifyWidget에서 커버로부터 추출) */
   albumCoverColor?: string;
   /** 재생 제어 실패 시 아티스트 자리에 대신 보여줄 안내 */
   errorMessage?: string | null;
@@ -251,6 +255,9 @@ const getTokenWarning = (registeredAt: string | undefined) => {
 /** 설정 > 저장소 > Spotify의 리프레시 토큰으로 현재 재생 정보를 불러와 보여주는 위젯 */
 export const SpotifyWidget = ({ backgroundStyle }: SpotifyWidgetProps) => {
   const { playback, progressMs, controlError, registeredAt, ...controls } = useSpotifyPlayback();
+  // material 스타일일 때만 커버 색을 추출한다 (훅은 조건부로 부를 수 없어서 url을 넘기지 않는 방식으로 끈다)
+  const albumCoverUrl = playback.status === "active" ? playback.track?.albumCoverUrl : undefined;
+  const albumCoverColor = useAlbumColor(backgroundStyle === "material" ? albumCoverUrl : undefined);
 
   switch (playback.status) {
     case "no-token":
@@ -327,6 +334,7 @@ export const SpotifyWidget = ({ backgroundStyle }: SpotifyWidgetProps) => {
           shuffle={playback.shuffle}
           repeat={playback.repeat}
           backgroundStyle={backgroundStyle}
+          albumCoverColor={albumCoverColor}
           errorMessage={controlError}
           tokenWarning={getTokenWarning(registeredAt)}
           onTogglePlay={controls.togglePlay}
