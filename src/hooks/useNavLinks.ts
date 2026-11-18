@@ -1,6 +1,9 @@
 import type { NavLink } from "../types/settings";
 import { createLocalStore, useLocalStore } from "./localStore";
 
+/** 하단 바에 등록할 수 있는 빠른 링크의 최대 개수 */
+export const MAX_NAV_LINKS = 32;
+
 export const DEFAULT_NAV_LINKS: NavLink[] = ["https://ko-fi.com/apple-touch-icon.png"].map((imageUrl, index) => ({
   id: `default-${index}`,
   imageUrl,
