@@ -3,9 +3,10 @@ import Draggable, { type DraggableData } from "react-draggable";
 import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
-import { deleteWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
+import { deleteWidget, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import { createLocalStore } from "../../hooks/localStore";
-import { findCatalogItem } from "../WidgetLibrary/widgetCatalog";
+import { findCatalogItem, type WidgetCatalogItem } from "../WidgetLibrary/widgetCatalog";
+import type { WidgetOptions } from "../../types/widget";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
 
@@ -18,6 +19,8 @@ type Widget = {
   id: string;
   name: string; // 편집 창 등에 표시할 위젯 이름
   component: React.ReactNode;
+  options: WidgetOptions; // 편집 창에서 저장한 위젯 옵션
+  editor?: WidgetCatalogItem["editor"]; // 편집 창에 표시할 위젯별 편집 항목
   position: Position; // 컨테이너 대비 비율(0~1)로 저장되는 위치. 화면 크기가 바뀌어도 배치가 유지됨
 };
 
@@ -195,13 +198,16 @@ export const BodySection = () => {
       // 위젯 라이브러리에서 추가한 위젯만 표시하고, 사용자가 옮긴 위치가 있으면 그 위치를 사용
       addedWidgets.flatMap((added) => {
         const item = findCatalogItem(added.type);
+        const options = added.options ?? {};
 
         return item
           ? [
               {
                 id: added.id,
                 name: item.name,
-                component: item.render(),
+                component: item.render(options),
+                options,
+                editor: item.editor,
                 position: savedPositions[added.id] ?? added.position,
               },
             ]
@@ -374,7 +380,12 @@ export const BodySection = () => {
               deleteWidget(editingWidget.id);
               closeEditor();
             }}
-          />
+          >
+            {editingWidget.editor?.({
+              options: editingWidget.options,
+              onChange: (options) => updateWidgetOptions(editingWidget.id, options),
+            })}
+          </WidgetEditor>
         )}
       </AnimatePresence>
     </div>

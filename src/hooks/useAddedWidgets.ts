@@ -1,4 +1,4 @@
-import type { AddedWidget, WidgetType } from "../types/widget";
+import type { AddedWidget, WidgetOptions, WidgetType } from "../types/widget";
 import { createLocalStore, useLocalStore } from "./localStore";
 
 // 새 위젯이 놓일 수 있는 비율 범위. 화면 밖으로 나가는 부분은 BodySection이 표시할 때 경계 안으로 보정한다
@@ -33,4 +33,13 @@ export const removeWidget = (type: WidgetType) => {
 /** 대시보드에 놓인 위젯을 삭제한다 */
 export const deleteWidget = (id: string) => {
   addedWidgetsStore.set(addedWidgetsStore.get().filter((widget) => widget.id !== id));
+};
+
+/** 대시보드에 놓인 위젯의 편집 옵션을 바꾼다 (기존 옵션에 덮어쓴다) */
+export const updateWidgetOptions = (id: string, options: WidgetOptions) => {
+  addedWidgetsStore.set(
+    addedWidgetsStore
+      .get()
+      .map((widget) => (widget.id === id ? { ...widget, options: { ...widget.options, ...options } } : widget)),
+  );
 };

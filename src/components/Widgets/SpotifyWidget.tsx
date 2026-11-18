@@ -5,12 +5,12 @@ import { getRefreshTokenLifetime, type SpotifyAuthError } from "../../hooks/spot
 import { useAlbumColor } from "../../hooks/useAlbumColor";
 import { MarqueeText } from "./MarqueeText";
 import spotifyCardBackground from "../../assets/imgs/spotify-card-background.png";
-
-type BackgroundStyle = "glass" | "ghost" | "material";
+import type { BackgroundStyle } from "./spotifyBackgroundStyle";
 
 const backgroudStyles: Record<BackgroundStyle, string> = {
   glass: "bg-white/[0.15] backdrop-blur-[12px] backdrop-saturate-[120%] group-text-white",
-  ghost: "bg-[#fefefe]/[100]",
+  // 배경 없이 내용만 표시
+  ghost: "bg-transparent",
   // material은 배경 이미지(+앨범 색상 오버레이)를 MaterialBackground로 깐다
   material: "",
 };
