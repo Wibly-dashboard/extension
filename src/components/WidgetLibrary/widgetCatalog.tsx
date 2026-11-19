@@ -10,7 +10,15 @@ import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { TodoWidget } from "../Widgets/TodoListWidget";
 import { parseClockFontColor } from "../Widgets/digitalClockColor";
 import { CLOCK_SIZE_STEP, MAX_CLOCK_SIZE, MIN_CLOCK_SIZE, parseClockSize } from "../Widgets/digitalClockSize";
+import {
+  DEFAULT_IMAGE_URL,
+  IMAGE_SIZE_RANGE,
+  IMAGE_UPLOAD_MAX_DIMENSION,
+  parseImageSize,
+  parseImageUrl,
+} from "../Widgets/imageBlockOptions";
 import { BACKGROUND_STYLE_LABELS, BACKGROUND_STYLES, parseBackgroundStyle } from "../Widgets/spotifyBackgroundStyle";
+import { ImageSourcePicker } from "../WidgetEditor/ImageSourcePicker";
 import { OptionSelector } from "../WidgetEditor/OptionSelector";
 import { RangeSlider } from "../WidgetEditor/RangeSlider";
 import { TextColorPicker } from "../WidgetEditor/TextColorPicker";
@@ -111,11 +119,38 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: MdImage,
     color: "text-pink-200",
     background: "bg-pink-400/20",
-    render: () => (
+    render: (options) => (
       <ImageBlock
-        imageUrl="https://images.unsplash.com/photo-1654198340681-a2e0fc449f1b?auto=format&fit=crop&fm=webp&q=70&w=600"
+        imageUrl={parseImageUrl(options.imageUrl)}
         altText="이미지 위젯"
+        width={parseImageSize(options.width)}
+        height={parseImageSize(options.height)}
       />
+    ),
+    editor: ({ options, onChange }) => (
+      <>
+        <ImageSourcePicker
+          label="이미지"
+          value={parseImageUrl(options.imageUrl)}
+          onChange={(imageUrl) => onChange({ imageUrl })}
+          onReset={() => onChange({ imageUrl: DEFAULT_IMAGE_URL })}
+          maxDimension={IMAGE_UPLOAD_MAX_DIMENSION}
+        />
+        <RangeSlider
+          label="너비"
+          {...IMAGE_SIZE_RANGE}
+          value={parseImageSize(options.width)}
+          onChange={(width) => onChange({ width: parseImageSize(width) })}
+          formatValue={(width) => `${width}px`}
+        />
+        <RangeSlider
+          label="높이"
+          {...IMAGE_SIZE_RANGE}
+          value={parseImageSize(options.height)}
+          onChange={(height) => onChange({ height: parseImageSize(height) })}
+          formatValue={(height) => `${height}px`}
+        />
+      </>
     ),
   },
 ];
