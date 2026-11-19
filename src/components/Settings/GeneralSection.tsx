@@ -71,14 +71,6 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
         />
       </SettingRow>
 
-      <SettingRow
-        title="글자 색"
-        description="대시보드 글자 색을 지정합니다. 위젯에 따라 적용이 다를 수 있습니다."
-        stacked
-      >
-        <ColorPicker label="글자 색" value={settings.fontColor} onChange={(fontColor) => onChange({ fontColor })} />
-      </SettingRow>
-
       <SettingRow title="배경" description={BACKGROUND_LABEL[background.type]} stacked>
         <div className="flex flex-col gap-3">
           <ColorPicker
@@ -87,7 +79,7 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
             onChange={(value) => onChange({ background: { type: "color", value } })}
           />
 
-          <div className="flex flex-wrap items-center gap-2 mt-5">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <input
               ref={fileInputRef}
               type="file"

@@ -85,7 +85,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
         role="dialog"
         aria-modal="true"
         aria-label="설정"
-        className="glass flex h-[760px] max-h-full w-[720px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
+        className="glass flex h-auto max-h-full w-[720px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}

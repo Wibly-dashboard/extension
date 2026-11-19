@@ -11,7 +11,6 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   gridSnap: true,
   gridSize: 25,
   widgetGap: 10,
-  fontColor: "#ffffff",
   linkTarget: "_self",
   background: { type: "default" },
 };

@@ -9,7 +9,6 @@ export type DashboardSettings = {
   gridSnap: boolean; // 위젯을 그리드에 맞춰 정렬할지 여부
   gridSize: number; // 그리드 한 칸의 크기(px)
   widgetGap: number; // 위젯 사이 최소 간격(px)
-  fontColor: string; // 대시보드 글자 색 (hex)
   linkTarget: LinkTarget; // 웹 사이트를 새 탭 / 현재 탭 중 어디에서 열지
   background: Background;
 };
