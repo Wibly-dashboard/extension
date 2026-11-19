@@ -25,7 +25,7 @@ export const RangeSlider = ({ label, min, max, step, value, onChange, formatValu
       step={step}
       value={value}
       onChange={(event) => onChange(Number(event.target.value))}
-      className="w-full cursor-pointer accent-white"
+      className="w-full cursor-pointer accent-white mb-5"
     />
   </div>
 );
