@@ -87,7 +87,7 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
             onChange={(value) => onChange({ background: { type: "color", value } })}
           />
 
-          <div className="flex flex-wrap items-center gap-2 mt-3">
+          <div className="flex flex-wrap items-center gap-2 mt-5">
             <input
               ref={fileInputRef}
               type="file"
