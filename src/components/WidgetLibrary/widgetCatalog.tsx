@@ -9,8 +9,12 @@ import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { ImageBlock } from "../Widgets/ImageBlock";
 import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { TodoWidget } from "../Widgets/TodoListWidget";
+import { parseClockFontColor } from "../Widgets/digitalClockColor";
+import { CLOCK_SIZE_STEP, MAX_CLOCK_SIZE, MIN_CLOCK_SIZE, parseClockSize } from "../Widgets/digitalClockSize";
 import { BACKGROUND_STYLE_LABELS, BACKGROUND_STYLES, parseBackgroundStyle } from "../Widgets/spotifyBackgroundStyle";
 import { OptionSelector } from "../WidgetEditor/OptionSelector";
+import { RangeSlider } from "../WidgetEditor/RangeSlider";
+import { TextColorPicker } from "../WidgetEditor/TextColorPicker";
 
 export type WidgetEditorFieldsProps = {
   /** 현재 저장된 위젯 옵션 */
@@ -43,7 +47,27 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: MdAccessTime,
     color: "text-sky-200",
     background: "bg-sky-400/20",
-    render: () => <DigitalClock />,
+    render: (options) => (
+      <DigitalClock size={parseClockSize(options.size)} fontColor={parseClockFontColor(options.fontColor)} />
+    ),
+    editor: ({ options, onChange }) => (
+      <>
+        <RangeSlider
+          label="크기"
+          min={MIN_CLOCK_SIZE}
+          max={MAX_CLOCK_SIZE}
+          step={CLOCK_SIZE_STEP}
+          value={parseClockSize(options.size)}
+          onChange={(size) => onChange({ size: parseClockSize(size) })}
+          formatValue={(size) => `${size.toFixed(1)}x`}
+        />
+        <TextColorPicker
+          label="글자 색상"
+          value={parseClockFontColor(options.fontColor)}
+          onChange={(fontColor) => onChange({ fontColor })}
+        />
+      </>
+    ),
   },
   {
     type: "todo",
