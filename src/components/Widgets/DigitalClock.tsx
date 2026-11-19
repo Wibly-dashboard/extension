@@ -2,8 +2,7 @@ import useTimeDate from "../../hooks/useTimeDate";
 import { DEFAULT_CLOCK_FONT_COLOR } from "./digitalClockColor";
 import { DEFAULT_CLOCK_SIZE } from "./digitalClockSize";
 
-// 크기 1.5일 때 Spotify 위젯 너비(464px)와 같아지도록 맞춘 기준 너비
-const BASE_WIDTH = 464 / 1.5;
+const BASE_WIDTH = 520 / 1.5;
 
 type DigitalClockProps = {
   /** 글자 색상 (#rrggbb) */
@@ -11,7 +10,10 @@ type DigitalClockProps = {
   size?: number;
 };
 
-export const DigitalClock = ({ fontColor = DEFAULT_CLOCK_FONT_COLOR, size = DEFAULT_CLOCK_SIZE }: DigitalClockProps) => {
+export const DigitalClock = ({
+  fontColor = DEFAULT_CLOCK_FONT_COLOR,
+  size = DEFAULT_CLOCK_SIZE,
+}: DigitalClockProps) => {
   const { time, date, daysOfWeek } = useTimeDate();
   const dayOfWeek = daysOfWeek[new Date().getDay()];
 
