@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import { FaSpotify } from "react-icons/fa";
-import { MdAccessTime, MdCalendarMonth, MdHourglassBottom, MdImage, MdTaskAlt } from "react-icons/md";
+import { MdAccessTime, MdHourglassBottom, MdImage, MdTaskAlt } from "react-icons/md";
 import type { WidgetOptions, WidgetType } from "../../types/widget";
 import { DDayWidget } from "../Widgets/DDayWidget";
 import { DigitalClock } from "../Widgets/DigitalClock";
-import { GoogleCalendarWidget } from "../Widgets/GoogleCalendar";
 import { ImageBlock } from "../Widgets/ImageBlock";
 import { SpotifyWidget } from "../Widgets/SpotifyWidget";
 import { TodoWidget } from "../Widgets/TodoListWidget";
@@ -77,15 +76,6 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     color: "text-emerald-200",
     background: "bg-emerald-400/20",
     render: () => <TodoWidget />,
-  },
-  {
-    type: "calendar",
-    name: "캘린더",
-    description: "이번 주 일정을 시간대별로 보여줍니다.",
-    icon: MdCalendarMonth,
-    color: "text-blue-200",
-    background: "bg-blue-400/20",
-    render: () => <GoogleCalendarWidget />,
   },
   {
     type: "spotify",
