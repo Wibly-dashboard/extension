@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { FaUpload } from "react-icons/fa";
-import { imageFileToDataUrl } from "../Settings/imageFile";
+import { IMAGE_FILE_ACCEPT, imageFileToDataUrl, UnsupportedImageTypeError } from "../Settings/imageFile";
 
 type ImageSourcePickerProps = {
   /** 편집 항목 이름 */
@@ -27,8 +27,12 @@ export const ImageSourcePicker = ({ label, value, onChange, onReset, maxDimensio
       onChange(await imageFileToDataUrl(file, maxDimension));
       setUrlDraft("");
       setError(null);
-    } catch {
-      setError("이미지를 불러오지 못했습니다. 다른 파일을 선택해 주세요.");
+    } catch (error) {
+      setError(
+        error instanceof UnsupportedImageTypeError
+          ? error.message
+          : "이미지를 불러오지 못했습니다. 다른 파일을 선택해 주세요.",
+      );
     }
   };
 
@@ -59,7 +63,7 @@ export const ImageSourcePicker = ({ label, value, onChange, onReset, maxDimensio
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={IMAGE_FILE_ACCEPT}
             className="hidden"
             onChange={(event) => {
               void handleFile(event.target.files?.[0]);
