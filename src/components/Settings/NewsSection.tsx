@@ -26,7 +26,8 @@ const components: Components = {
 };
 
 export const NewsSection = () => (
-  <article className="py-2">
+  // 내용 길이와 관계없이 높이를 고정하고, 넘치는 내용은 스크롤로 본다
+  <article className="h-[480px] max-h-[65vh] overflow-y-auto py-2 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <Markdown components={components}>{whatsNew}</Markdown>
   </article>
 );
