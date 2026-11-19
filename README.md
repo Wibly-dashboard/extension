@@ -1,8 +1,6 @@
 <div align="center">
-<img src="./src/assets/imgs/logo.png" width="10%" />
+<img src="./src/assets/imgs/logo.png" width="90" />
 </div>
-
-<br>
 
 <!-- <p align="center">
   <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=white" alt="React" />
@@ -14,7 +12,7 @@
   <img src="https://img.shields.io/badge/React_Draggable-4.7.2-61DAFB?logo=react&logoColor=white" alt="React Draggable" />
 </p> -->
 
-<h1 align="center">Wibly</h1>
+<h1 align="center">Wibly Dashboard</h1>
 
 <p align="center">
   <strong>필요한 정보를 한 화면에 모아 보고, 위젯을 원하는 위치에 자유롭게 배치하세요.</strong>
