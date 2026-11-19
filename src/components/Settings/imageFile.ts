@@ -1,9 +1,9 @@
 const MAX_DIMENSION = 1920;
 
-// 업로드한 이미지를 배경용 data URL로 변환. localStorage 용량(약 5MB)에 맞도록 축소·압축한다
-export const imageFileToDataUrl = async (file: File): Promise<string> => {
+// 업로드한 이미지를 data URL로 변환. localStorage 용량(약 5MB)에 맞도록 긴 변을 maxDimension 이하로 축소·압축한다
+export const imageFileToDataUrl = async (file: File, maxDimension = MAX_DIMENSION): Promise<string> => {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
 
   canvas.width = Math.round(bitmap.width * scale);
