@@ -43,6 +43,8 @@ export type WidgetCatalogItem = {
   render: (options: WidgetOptions) => ReactNode;
   /** 편집 창에 표시할 편집 항목. 없으면 편집할 항목이 없다는 안내가 표시된다 */
   editor?: (props: WidgetEditorFieldsProps) => ReactNode;
+  /** true면 같은 위젯을 대시보드에 여러 개 추가할 수 있다 (기본: 한 개만) */
+  allowMultiple?: boolean;
 };
 
 // 위젯 라이브러리에 노출되는 위젯 목록. 새 위젯은 여기에 항목을 추가하면 된다
@@ -119,6 +121,7 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: MdImage,
     color: "text-pink-200",
     background: "bg-pink-400/20",
+    allowMultiple: true,
     render: (options) => (
       <ImageBlock
         imageUrl={parseImageUrl(options.imageUrl)}
