@@ -1,11 +1,11 @@
 import { FaPause, FaPlay, FaRandom, FaSpotify, FaStepBackward, FaStepForward } from "react-icons/fa";
 import { FaRepeat } from "react-icons/fa6";
-import { useSpotifyPlayback, type RepeatState } from "../../hooks/useSpotifyPlayback";
-import { getRefreshTokenLifetime, type SpotifyAuthError } from "../../hooks/spotifyAuth";
-import { useAlbumColor } from "../../hooks/useAlbumColor";
+import { useSpotifyPlayback, type RepeatState } from "../../../hooks/useSpotifyPlayback";
+import { getRefreshTokenLifetime, type SpotifyAuthError } from "../../../hooks/spotifyAuth";
+import { useAlbumColor } from "../../../hooks/useAlbumColor";
 import { MarqueeText } from "./MarqueeText";
-import spotifyCardBackground from "../../assets/imgs/spotify-card-background.png";
-import type { BackgroundStyle } from "./spotifyBackgroundStyle";
+import spotifyCardBackground from "../../../assets/imgs/spotify-card-background.png";
+import type { BackgroundStyle } from "./spotifyOptions";
 
 const backgroudStyles: Record<BackgroundStyle, string> = {
   glass: "bg-white/[0.15] backdrop-blur-[12px] backdrop-saturate-[120%] group-text-white",

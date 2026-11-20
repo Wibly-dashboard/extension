@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createElement } from "react";
-import { SpotifyMessage, SpotifyPlayerView } from "../components/Widgets/SpotifyWidget";
+import { SpotifyMessage, SpotifyPlayerView } from "../components/Widgets/Spotify/SpotifyWidget";
 
 // 실제 위젯(SpotifyWidget)은 토큰으로 API를 호출하므로, 스토리에서는 화면만 그리는 SpotifyPlayerView / SpotifyMessage를 사용한다
 const meta: Meta<typeof SpotifyPlayerView> = {

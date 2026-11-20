@@ -1,4 +1,4 @@
-import { normalizeUrl } from "../../hooks/useNavLinks";
+import { normalizeUrl } from "../../../hooks/useNavLinks";
 
 /** 새로 추가한 빠른 링크 위젯의 기본값 */
 export const DEFAULT_LINK_URL = "https://www.google.com";

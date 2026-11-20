@@ -32,7 +32,3 @@ export const parseDdayDate = (value: unknown, defaultValue: string = DEFAULT_DDA
 
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : defaultValue;
 };
-
-/** 저장된 값이 #rrggbb 형식의 색상이 아니면 기본값을 사용한다 */
-export const parseDdayColor = (value: unknown, defaultValue: string): string =>
-  typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : defaultValue;

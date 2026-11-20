@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { DigitalClock } from "../components/Widgets/DigitalClock";
+import { DigitalClock } from "../components/Widgets/Clock/DigitalClock";
 
 const meta: Meta<typeof DigitalClock> = {
   title: "Components/DigitalClock",
