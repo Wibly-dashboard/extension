@@ -16,7 +16,19 @@ let initPromise: Promise<void> | null = null;
 const pendingWrites = new Map<string, string[]>();
 const keyListeners = new Map<string, Set<(value: unknown) => void>>();
 
-const serialize = (value: unknown) => (value === undefined ? "undefined" : JSON.stringify(value));
+// chrome.storage는 저장한 객체의 키를 알파벳순으로 정렬해서 돌려주므로, 키 순서와 관계없이 같은 값이면 같은 문자열이 되게 한다
+const sortKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortKeys((value as Record<string, unknown>)[key])]),
+  );
+};
+
+const serialize = (value: unknown) => (value === undefined ? "undefined" : JSON.stringify(sortKeys(value)));
 
 const addPendingWrite = (key: string, serialized: string) => {
   const queue = pendingWrites.get(key) ?? [];
@@ -30,12 +42,16 @@ const removePendingWrite = (key: string, serialized: string) => {
   if (queue && index >= 0) queue.splice(index, 1);
 };
 
-/** 이 탭이 저장해서 돌아온 알림이면 기록에서 지우고 true */
+/**
+ * 이 탭이 저장해서 돌아온 알림이면 기록에서 지우고 true.
+ * 그보다 먼저 저장한 기록은 알림이 오지 않은 것이므로(값이 그대로였던 저장 등) 함께 지운다
+ */
 const consumeOwnWrite = (key: string, newValue: unknown) => {
   const queue = pendingWrites.get(key);
-  if (!queue?.length || queue[0] !== serialize(newValue)) return false;
+  const index = queue?.indexOf(serialize(newValue)) ?? -1;
+  if (!queue || index < 0) return false;
 
-  queue.shift();
+  queue.splice(0, index + 1);
   return true;
 };
 
@@ -136,11 +152,17 @@ export const writeItem = (key: string, value: unknown, onFailure?: (error: unkno
 
   if (isExtensionStorage()) {
     const previous = cache.get(key);
+    const serialized = serialize(remove ? undefined : value);
+
+    // 값이 그대로면 저장하지 않는다 (브라우저도 알림을 보내지 않는다)
+    if (serialized === serialize(previous)) {
+      if (!remove) cache.set(key, value);
+      return true;
+    }
 
     if (remove) cache.delete(key);
     else cache.set(key, value);
 
-    const serialized = serialize(remove ? undefined : value);
     addPendingWrite(key, serialized);
 
     (remove ? chrome.storage.local.remove(key) : chrome.storage.local.set({ [key]: value })).catch((error) => {

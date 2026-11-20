@@ -2,9 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type ChangeListener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => void;
 
+// Chrome은 저장한 객체의 키를 알파벳순으로 정렬해서 돌려준다
+const sortKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortKeys((value as Record<string, unknown>)[key])]),
+  );
+};
+
 /**
- * chrome.storage.local 흉내: 실제처럼 저장 결과를 onChanged로 비동기(다음 타이머)에 알려준다.
- * 이 탭에서 저장한 값도 알림이 오는 점이 실제 브라우저와 같다.
+ * chrome.storage.local 흉내 (실제 Chrome과 같게):
+ * - 저장 결과를 onChanged로 비동기(다음 타이머)에 알려주며, 이 탭에서 저장한 값도 알림이 온다
+ * - 돌려주는 객체의 키는 알파벳순으로 정렬된다
+ * - 값이 그대로면 알림이 오지 않는다
  */
 const createFakeChrome = () => {
   const data: Record<string, unknown> = {};
@@ -20,8 +34,11 @@ const createFakeChrome = () => {
           get: async () => ({ ...data }),
           set: async (items: Record<string, unknown>) => {
             Object.entries(items).forEach(([key, value]) => {
-              data[key] = value;
-              setTimeout(() => emit(key, value));
+              const stored = sortKeys(JSON.parse(JSON.stringify(value)));
+              if (JSON.stringify(stored) === JSON.stringify(data[key])) return;
+
+              data[key] = stored;
+              setTimeout(() => emit(key, stored));
             });
           },
           remove: async (key: string) => {
@@ -71,6 +88,23 @@ describe("storage (확장 프로그램 저장소)", () => {
     await vi.runAllTimersAsync();
 
     expect(readItem("title")).toBe("한");
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("키 순서가 바뀌어 돌아온 객체 알림도 이 탭이 저장한 것으로 알아본다", async () => {
+    const { writeItem, readItem, subscribeItem } = await setup();
+    const listener = vi.fn();
+    subscribeItem("widgets", listener);
+
+    // 위젯 목록처럼 키 순서가 알파벳순이 아닌 객체를 빠르게 연달아 저장
+    writeItem("widgets", [{ type: "dday", id: "d", options: { title: "ㅎ" } }]);
+    writeItem("widgets", [{ type: "dday", id: "d", options: { title: "하" } }]);
+    writeItem("widgets", [{ type: "dday", id: "d", options: { title: "하" } }]); // 값이 그대로인 저장 (알림 없음)
+    writeItem("widgets", [{ type: "dday", id: "d", options: { title: "한" } }]);
+
+    await vi.runAllTimersAsync();
+
+    expect(readItem("widgets")).toEqual([{ type: "dday", id: "d", options: { title: "한" } }]);
     expect(listener).not.toHaveBeenCalled();
   });
 
