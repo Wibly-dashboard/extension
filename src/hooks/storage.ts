@@ -10,6 +10,35 @@ export const isExtensionStorage = () => typeof chrome !== "undefined" && !!chrom
 const cache = new Map<string, unknown>();
 let initPromise: Promise<void> | null = null;
 
+// chrome.storage.onChanged는 다른 탭뿐 아니라 이 탭에서 저장한 값도 비동기로 늦게 알려준다.
+// 빠르게 입력하는 중에 이전 저장의 알림이 도착해 최신 값을 덮어쓰면, 입력값이 잠깐 되돌아가 한글 조합 중 글자가 두 번 입력된다.
+// 그래서 이 탭이 저장한 값을 순서대로 기록해 두고, 그 알림은 건너뛴다.
+const pendingWrites = new Map<string, string[]>();
+const keyListeners = new Map<string, Set<(value: unknown) => void>>();
+
+const serialize = (value: unknown) => (value === undefined ? "undefined" : JSON.stringify(value));
+
+const addPendingWrite = (key: string, serialized: string) => {
+  const queue = pendingWrites.get(key) ?? [];
+  queue.push(serialized);
+  pendingWrites.set(key, queue);
+};
+
+const removePendingWrite = (key: string, serialized: string) => {
+  const queue = pendingWrites.get(key);
+  const index = queue?.indexOf(serialized) ?? -1;
+  if (queue && index >= 0) queue.splice(index, 1);
+};
+
+/** 이 탭이 저장해서 돌아온 알림이면 기록에서 지우고 true */
+const consumeOwnWrite = (key: string, newValue: unknown) => {
+  const queue = pendingWrites.get(key);
+  if (!queue?.length || queue[0] !== serialize(newValue)) return false;
+
+  queue.shift();
+  return true;
+};
+
 const parseJson = (raw: string | null): unknown => {
   if (raw === null) return undefined;
 
@@ -63,8 +92,13 @@ export const initStorage = (): Promise<void> => {
       if (areaName !== "local") return;
 
       Object.entries(changes).forEach(([key, change]) => {
+        // 이 탭이 저장한 값은 캐시에 이미 반영되어 있다 (늦게 온 알림으로 최신 값을 덮어쓰지 않는다)
+        if (consumeOwnWrite(key, change.newValue)) return;
+
         if (change.newValue === undefined) cache.delete(key);
         else cache.set(key, change.newValue);
+
+        keyListeners.get(key)?.forEach((listener) => listener(change.newValue));
       });
     });
 
@@ -106,7 +140,13 @@ export const writeItem = (key: string, value: unknown, onFailure?: (error: unkno
     if (remove) cache.delete(key);
     else cache.set(key, value);
 
+    const serialized = serialize(remove ? undefined : value);
+    addPendingWrite(key, serialized);
+
     (remove ? chrome.storage.local.remove(key) : chrome.storage.local.set({ [key]: value })).catch((error) => {
+      // 저장에 실패하면 알림이 오지 않으므로 기록에서 지운다
+      removePendingWrite(key, serialized);
+
       if (cache.get(key) === (remove ? undefined : value)) {
         if (previous === undefined) cache.delete(key);
         else cache.set(key, previous);
@@ -134,13 +174,12 @@ export const subscribeItem = (key: string, listener: (value: unknown) => void): 
   if (typeof window === "undefined") return () => {};
 
   if (isExtensionStorage()) {
-    const handleChange = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
-      if (areaName === "local" && key in changes) listener(changes[key].newValue);
-    };
+    // initStorage()의 onChanged 리스너가 이 탭이 저장한 알림을 걸러낸 뒤 호출한다
+    const listeners = keyListeners.get(key) ?? new Set();
+    listeners.add(listener);
+    keyListeners.set(key, listeners);
 
-    chrome.storage.onChanged.addListener(handleChange);
-
-    return () => chrome.storage.onChanged.removeListener(handleChange);
+    return () => listeners.delete(listener);
   }
 
   const handleStorage = (event: StorageEvent) => {
