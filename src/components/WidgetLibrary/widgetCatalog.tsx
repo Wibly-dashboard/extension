@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import { FaSpotify } from "react-icons/fa";
-import { MdAccessTime, MdHourglassBottom, MdImage, MdLink, MdTaskAlt, MdTimer } from "react-icons/md";
+import { MdAccessTime, MdHourglassBottom, MdImage, MdLink, MdTimer } from "react-icons/md";
 import type { WidgetOptions, WidgetType } from "../../types/widget";
 import { DDayWidget } from "../Widgets/DDayWidget";
 import { DigitalClock } from "../Widgets/DigitalClock";
@@ -106,15 +106,7 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
       </>
     ),
   },
-  {
-    type: "todo",
-    name: "할 일 목록",
-    description: "오늘 할 일을 체크하고 진행률을 확인합니다.",
-    icon: MdTaskAlt,
-    color: "text-emerald-200",
-    background: "bg-emerald-400/20",
-    render: () => <TodoWidget />,
-  },
+
   {
     type: "spotify",
     name: "Spotify",
