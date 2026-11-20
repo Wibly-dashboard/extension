@@ -8,12 +8,16 @@ import { createLocalStore } from "../../hooks/localStore";
 import { findCatalogItem } from "../Widgets/widgetCatalog";
 import type { WidgetCatalogItem, WidgetOptions } from "../../types/widget";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
-import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
-
-type Rect = Position & {
-  width: number;
-  height: number;
-};
+import {
+  clampPosition,
+  findNearestFreePosition,
+  REFERENCE_SIZE,
+  toPixel,
+  toRatio,
+  type Position,
+  type Rect,
+  type Size,
+} from "./position";
 
 type Widget = {
   id: string;
@@ -64,13 +68,6 @@ const snapPosition = (value: number, size: number, containerLength: number, layo
   const snappedCenter = origin + Math.round((center - origin) / layout.gridSize) * layout.gridSize;
 
   return Math.round(snappedCenter - size / 2);
-};
-
-const isColliding = (a: Rect, b: Rect, gap: number) => {
-  // 충돌 여부 확인
-  return (
-    a.x < b.x + b.width + gap && a.x + a.width > b.x - gap && a.y < b.y + b.height + gap && a.y + a.height > b.y - gap
-  );
 };
 
 const getMaxPosition = (
@@ -260,40 +257,15 @@ export const BodySection = () => {
       });
     }
 
-    const width = node.offsetWidth;
-    const height = node.offsetHeight;
-    const isFree = (candidate: Position) => {
-      const rect: Rect = { ...candidate, width, height };
-
-      return !otherRects.some((otherRect) => isColliding(rect, otherRect, layout.widgetGap));
-    };
-
-    const desiredBounded = getBoundedPosition(desiredPosition, size, node, layout);
-    if (isFree(desiredBounded)) return desiredBounded;
-
-    // 컨테이너 안의 그리드 후보를 한 번 훑어 원래 위치에서 가장 가까운 빈 자리를 선택
-    const max = getMaxPosition(size, node);
-    let best: Position | undefined;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (let x = 0; x <= max.x; x += layout.gridSize) {
-      for (let y = 0; y <= max.y; y += layout.gridSize) {
-        const dx = x - desiredPosition.x;
-        const dy = y - desiredPosition.y;
-        const distance = dx * dx + dy * dy;
-
-        // 이미 찾은 후보보다 멀면 충돌 검사를 생략
-        if (distance >= bestDistance) continue;
-
-        const candidate = getBoundedPosition({ x, y }, size, node, layout);
-        if (!isFree(candidate)) continue;
-
-        best = candidate;
-        bestDistance = distance;
-      }
-    }
-
-    return best;
+    return findNearestFreePosition({
+      desired: desiredPosition,
+      size: { width: node.offsetWidth, height: node.offsetHeight },
+      max: getMaxPosition(size, node),
+      others: otherRects,
+      gap: layout.widgetGap,
+      normalize: (candidate) => getBoundedPosition(candidate, size, node, layout),
+      gridStep: layout.gridSnap ? layout.gridSize : undefined,
+    });
   };
 
   const handleStop = (
