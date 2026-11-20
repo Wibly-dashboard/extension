@@ -144,10 +144,15 @@ const WidgetItem = ({
         wasDraggedRef.current = false;
         onStart(widget.id);
       }}
-      onStop={(_, data) => {
+      onDrag={(_, data) => {
+        // 끝난 위치가 아니라 드래그 중 한 번이라도 멀리 움직였는지로 판단한다
+        // (멀리 끌었다가 제자리 근처에 놓아도 클릭으로 처리되어 링크가 열리지 않도록)
         // 손떨림 정도의 작은 움직임은 클릭으로 취급
-        wasDraggedRef.current =
-          Math.hypot(data.x - dragStartRef.current.x, data.y - dragStartRef.current.y) > DRAG_CLICK_THRESHOLD;
+        if (Math.hypot(data.x - dragStartRef.current.x, data.y - dragStartRef.current.y) > DRAG_CLICK_THRESHOLD) {
+          wasDraggedRef.current = true;
+        }
+      }}
+      onStop={(_, data) => {
         onStop(widget.id, data);
       }}
     >
