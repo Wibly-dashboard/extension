@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import { FaSpotify } from "react-icons/fa";
-import { MdAccessTime, MdHourglassBottom, MdImage, MdTaskAlt } from "react-icons/md";
+import { MdAccessTime, MdHourglassBottom, MdImage, MdLink, MdTaskAlt } from "react-icons/md";
 import type { WidgetOptions, WidgetType } from "../../types/widget";
 import { DDayWidget } from "../Widgets/DDayWidget";
 import { DigitalClock } from "../Widgets/DigitalClock";
@@ -22,6 +22,15 @@ import { ImageSourcePicker } from "../WidgetEditor/ImageSourcePicker";
 import { OptionSelector } from "../WidgetEditor/OptionSelector";
 import { RangeSlider } from "../WidgetEditor/RangeSlider";
 import { TextColorPicker } from "../WidgetEditor/TextColorPicker";
+import { FastLinkWidget } from "../Widgets/FastLinkWidget";
+import {
+  parseLinkImageUrl,
+  parseLinkName,
+  parseLinkUrl,
+  parseShowLinkName,
+  toLinkHref,
+} from "../Widgets/FastLinkWidgetOptions";
+import { FastLinkEditor } from "../WidgetEditor/FastLinkEditor";
 
 export type WidgetEditorFieldsProps = {
   /** 현재 저장된 위젯 옵션 */
@@ -155,6 +164,24 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
         />
       </>
     ),
+  },
+  {
+    type: "FastLink",
+    name: "빠른 링크",
+    description: "자주 사용하는 링크를 빠르게 접근할 수 있습니다.",
+    icon: MdLink,
+    color: "text-blue-200",
+    background: "bg-blue-400/20",
+    allowMultiple: true,
+    render: (options) => (
+      <FastLinkWidget
+        LinkName={parseLinkName(options.linkName)}
+        LinkUrl={toLinkHref(parseLinkUrl(options.linkUrl))}
+        LinkImageUrl={parseLinkImageUrl(options.linkImageUrl)}
+        isShowLinkName={parseShowLinkName(options.isShowLinkName)}
+      />
+    ),
+    editor: (props) => <FastLinkEditor {...props} />,
   },
 ];
 

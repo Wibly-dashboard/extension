@@ -1,4 +1,4 @@
-export type WidgetType = "clock" | "todo" | "calendar" | "spotify" | "dday" | "image";
+export type WidgetType = "clock" | "todo" | "calendar" | "spotify" | "dday" | "image" | "FastLink";
 
 export type Widget = {
   id: string;
