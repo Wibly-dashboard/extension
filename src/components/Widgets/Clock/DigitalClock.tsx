@@ -1,6 +1,5 @@
-import useTimeDate from "../../hooks/useTimeDate";
-import { DEFAULT_CLOCK_FONT_COLOR } from "./digitalClockColor";
-import { DEFAULT_CLOCK_SIZE } from "./digitalClockSize";
+import useTimeDate from "../../../hooks/useTimeDate";
+import { DEFAULT_CLOCK_FONT_COLOR, DEFAULT_CLOCK_SIZE } from "./clockOptions";
 
 const BASE_WIDTH = 520 / 1.5;
 

@@ -1,4 +1,4 @@
-import { DEFAULT_IMAGE_SIZE } from "./imageBlockOptions";
+import { DEFAULT_IMAGE_SIZE } from "./imageOptions";
 
 type ImageBlockProps = {
   imageUrl: string;

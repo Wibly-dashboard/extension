@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FastLinkWidget } from "../components/Widgets/FastLinkWidget";
+import { FastLinkWidget } from "../components/Widgets/FastLink/FastLinkWidget";
 
 const meta: Meta<typeof FastLinkWidget> = {
   title: "Components/FastLinkWidget",

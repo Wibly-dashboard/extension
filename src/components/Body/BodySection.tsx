@@ -5,8 +5,8 @@ import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
 import { deleteWidget, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import { createLocalStore } from "../../hooks/localStore";
-import { findCatalogItem, type WidgetCatalogItem } from "../WidgetLibrary/widgetCatalog";
-import type { WidgetOptions } from "../../types/widget";
+import { findCatalogItem } from "../Widgets/widgetCatalog";
+import type { WidgetCatalogItem, WidgetOptions } from "../../types/widget";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
 

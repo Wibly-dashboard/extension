@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { LinkBlock } from "../components/Widgets/LinkBlock";
+import { LinkBlock } from "../components/Footer/LinkBlock";
 
 const meta: Meta<typeof LinkBlock> = {
-  title: "Widgets/LinkBlock",
+  title: "Footer/LinkBlock",
   component: LinkBlock,
 };
 
