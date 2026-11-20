@@ -7,7 +7,6 @@ import { DDayWidget } from "../Widgets/DDayWidget";
 import { DigitalClock } from "../Widgets/DigitalClock";
 import { ImageBlock } from "../Widgets/ImageBlock";
 import { SpotifyWidget } from "../Widgets/SpotifyWidget";
-import { TodoWidget } from "../Widgets/TodoListWidget";
 import { parseClockFontColor } from "../Widgets/digitalClockColor";
 import { CLOCK_SIZE_STEP, MAX_CLOCK_SIZE, MIN_CLOCK_SIZE, parseClockSize } from "../Widgets/digitalClockSize";
 import {
