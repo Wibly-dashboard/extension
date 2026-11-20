@@ -43,6 +43,7 @@ type LayoutOptions = {
 };
 
 const CENTER_SNAP_THRESHOLD = 15;
+const DRAG_CLICK_THRESHOLD = 3; // 이 거리(px) 이하로 움직이면 드래그가 아닌 클릭으로 본다
 // 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
 const STORAGE_KEY = "dashboard-widgets-v2";
 
@@ -129,6 +130,8 @@ const WidgetItem = ({
   onEdit,
 }: WidgetItemProps) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<Position>({ x: 0, y: 0 }); // 드래그를 시작한 위치
+  const wasDraggedRef = useRef(false); // 직전 마우스 조작이 클릭이 아닌 드래그였는지 여부
 
   return (
     <Draggable
@@ -136,10 +139,15 @@ const WidgetItem = ({
       position={pixelPosition}
       bounds="parent"
       handle=".widget-drag-handle"
-      onStart={() => {
+      onStart={(_, data) => {
+        dragStartRef.current = { x: data.x, y: data.y };
+        wasDraggedRef.current = false;
         onStart(widget.id);
       }}
       onStop={(_, data) => {
+        // 손떨림 정도의 작은 움직임은 클릭으로 취급
+        wasDraggedRef.current =
+          Math.hypot(data.x - dragStartRef.current.x, data.y - dragStartRef.current.y) > DRAG_CLICK_THRESHOLD;
         onStop(widget.id, data);
       }}
     >
@@ -148,6 +156,14 @@ const WidgetItem = ({
         id={`widget-${widget.id}`}
         // will-change-transform: 위젯을 별도 합성 레이어로 올려 드래그 중 배경과 다른 위젯을 다시 그리지 않게 한다
         className={`absolute left-0 top-0 w-fit will-change-transform ${isDragging || isSelected ? "z-50" : "z-0"}`}
+        onClickCapture={(event) => {
+          // 드래그를 끝내며 마우스를 놓을 때 발생하는 클릭이 위젯 안의 링크·버튼으로 전달되지 않게 막는다
+          if (!wasDraggedRef.current) return;
+
+          wasDraggedRef.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onContextMenu={(event) => {
           // 브라우저 기본 메뉴 대신 위젯 선택
           event.preventDefault();
