@@ -32,3 +32,27 @@ main -- 버그 발생 --> hoxfix[hotfix 브랜치] -- 버그 수정 --> main
 - `hooks` : 컴포넌트 로직을 구현하는 곳 (예: 시간 계산, 로그인 등 로직)
 - `stories` : 컴포넌트 UI 문서를 관리하는 곳
 - `types` : 전역으로 사용되는 타입을 지정하는 곳
+
+### 위젯 폴더 구조
+
+위젯 하나에 필요한 파일은 `components/Widgets/<위젯 이름>/` 폴더 하나에 모아 둡니다.
+
+```
+components/
+├─ Widgets/
+│  ├─ widgetCatalog.ts        # 위젯 라이브러리에 노출할 위젯 목록
+│  ├─ shared/                 # 여러 위젯이 함께 쓰는 로직 (예: 색상 값 검사)
+│  └─ <위젯 이름>/
+│     ├─ index.tsx            # 위젯 정의 (이름, 아이콘, 렌더링, 편집 항목)
+│     ├─ <위젯 이름>Widget.tsx # 위젯 UI
+│     ├─ <위젯 이름>Options.ts # 옵션 기본값과 저장된 옵션을 검사하는 parse 함수
+│     └─ <위젯 이름>Editor.tsx # (선택) 편집 항목이 복잡할 때만 분리
+├─ WidgetEditor/              # 편집 창과 여러 위젯이 함께 쓰는 편집 항목 (슬라이더, 색상 선택 등)
+└─ WidgetLibrary/             # 위젯 라이브러리 UI
+```
+
+새 위젯 추가 순서
+
+1. `types/widget.ts`의 `WidgetType`에 위젯 종류를 추가합니다.
+2. `components/Widgets/<위젯 이름>/` 폴더에 위젯 UI, 옵션, `index.tsx`를 만듭니다.
+3. `index.tsx`에서 내보낸 항목을 `widgetCatalog.ts`의 `WIDGET_CATALOG`에 추가합니다.

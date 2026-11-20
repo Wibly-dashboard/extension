@@ -1,3 +1,5 @@
+import { parseHexColor } from "../shared/parseHexColor";
+
 export const MIN_CLOCK_SIZE = 1;
 export const MAX_CLOCK_SIZE = 2;
 export const CLOCK_SIZE_STEP = 0.1;
@@ -12,3 +14,7 @@ export const parseClockSize = (value: unknown): number => {
 
   return Math.round(clamped * 10) / 10;
 };
+
+export const DEFAULT_CLOCK_FONT_COLOR = "#ffffff";
+
+export const parseClockFontColor = (value: unknown): string => parseHexColor(value, DEFAULT_CLOCK_FONT_COLOR);

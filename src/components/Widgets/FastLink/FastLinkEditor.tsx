@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { FaSpinner } from "react-icons/fa";
-import { findSiteIcon } from "../../hooks/siteIcon";
-import type { WidgetOptions } from "../../types/widget";
-import { Toggle } from "../Settings/Controls";
-import { FastLinkIcon } from "../Widgets/FastLinkWidget";
+import { findSiteIcon } from "../../../hooks/siteIcon";
+import type { WidgetEditorFieldsProps } from "../../../types/widget";
+import { Toggle } from "../../Settings/Controls";
+import { FastLinkIcon } from "./FastLinkWidget";
 import {
   getSiteName,
   parseEdited,
@@ -11,13 +11,7 @@ import {
   parseLinkName,
   parseLinkUrl,
   parseShowLinkName,
-} from "../Widgets/FastLinkWidgetOptions";
-
-type FastLinkEditorProps = {
-  options: WidgetOptions;
-  /** 바꾼 옵션만 넘기면 기존 옵션에 합쳐 저장된다 */
-  onChange: (options: WidgetOptions) => void;
-};
+} from "./fastLinkOptions";
 
 type IconStatus = "idle" | "loading" | "found" | "failed";
 
@@ -30,7 +24,7 @@ const AUTO_BUTTON =
   "shrink-0 cursor-pointer rounded-lg px-3 py-2 text-sm text-white/70 transition-colors duration-200 hover:bg-white/15 hover:text-white";
 
 /** 빠른 링크 위젯 편집 항목: 링크를 입력하면 사이트 이름과 아이콘을 자동으로 채우고, 직접 고칠 수도 있다 */
-export const FastLinkEditor = ({ options, onChange }: FastLinkEditorProps) => {
+export const FastLinkEditor = ({ options, onChange }: WidgetEditorFieldsProps) => {
   const linkUrl = parseLinkUrl(options.linkUrl);
   const linkName = parseLinkName(options.linkName);
   const linkImageUrl = parseLinkImageUrl(options.linkImageUrl);

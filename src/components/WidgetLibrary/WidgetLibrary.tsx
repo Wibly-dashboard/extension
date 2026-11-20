@@ -5,7 +5,7 @@ import { FaSearch, FaTimes } from "react-icons/fa";
 import { addWidget, removeWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import type { WidgetType } from "../../types/widget";
 import { WidgetCard } from "./WidgetCard";
-import { WIDGET_CATALOG } from "./widgetCatalog";
+import { WIDGET_CATALOG } from "../Widgets/widgetCatalog";
 
 type WidgetLibraryProps = {
   onClose: () => void;

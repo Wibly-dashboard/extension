@@ -1,3 +1,5 @@
+import { parseHexColor } from "../shared/parseHexColor";
+
 /** 편집 창 슬라이더 범위와 새로 추가한 포모도로 위젯의 기본값 */
 export const FOCUS_MINUTES_RANGE = { min: 1, max: 90, step: 1 } as const;
 export const BREAK_MINUTES_RANGE = { min: 1, max: 30, step: 1 } as const;
@@ -23,6 +25,5 @@ export const parseBreakMinutes = (value: unknown): number =>
 export const parseSessionCount = (value: unknown): number =>
   parseInteger(value, SESSION_COUNT_RANGE, DEFAULT_SESSION_COUNT);
 
-/** 저장된 값이 #rrggbb 형식의 색상이 아니면 기본값을 사용한다 */
 export const parsePomodoroTimerColor = (value: unknown): string =>
-  typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : DEFAULT_POMODORO_TIMER_COLOR;
+  parseHexColor(value, DEFAULT_POMODORO_TIMER_COLOR);
