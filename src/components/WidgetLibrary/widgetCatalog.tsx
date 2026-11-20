@@ -31,6 +31,15 @@ import {
   toLinkHref,
 } from "../Widgets/FastLinkWidgetOptions";
 import { FastLinkEditor } from "../WidgetEditor/FastLinkEditor";
+import {
+  DEFAULT_DDAY_BACKGROUND_COLOR,
+  DEFAULT_DDAY_REMAINING_COLOR,
+  DEFAULT_DDAY_TEXT_COLOR,
+  parseDdayColor,
+  parseDdayDate,
+  parseDdayTitle,
+} from "../Widgets/DdayWidgetOptions";
+import { DDayEditor } from "../WidgetEditor/DDayEditor";
 
 export type WidgetEditorFieldsProps = {
   /** 현재 저장된 위젯 옵션 */
@@ -121,7 +130,17 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     icon: MdHourglassBottom,
     color: "text-orange-200",
     background: "bg-orange-400/20",
-    render: () => <DDayWidget title="새 목표" targetDate="2026-12-31" startDate="2026-11-01" />,
+    allowMultiple: true,
+    render: (options) => (
+      <DDayWidget
+        title={parseDdayTitle(options.title)}
+        targetDate={parseDdayDate(options.targetDate)}
+        textColor={parseDdayColor(options.textColor, DEFAULT_DDAY_TEXT_COLOR)}
+        remainingColor={parseDdayColor(options.remainingColor, DEFAULT_DDAY_REMAINING_COLOR)}
+        backgroundColor={parseDdayColor(options.backgroundColor, DEFAULT_DDAY_BACKGROUND_COLOR)}
+      />
+    ),
+    editor: (props) => <DDayEditor {...props} />,
   },
   {
     type: "image",

@@ -2,9 +2,16 @@ import { useMemo } from "react";
 
 type DDayWidgetProps = {
   title: string;
+  /** YYYY-MM-DD */
   targetDate: string;
-  startDate: string;
+  /** 제목 글자 색 */
+  textColor: string;
+  /** 남은 기간(D-n) 글자 색 */
+  remainingColor: string;
+  backgroundColor: string;
 };
+
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 const parseDate = (value: string) => {
   const [year, month, day] = value.split("-").map(Number);
@@ -18,35 +25,17 @@ const parseDate = (value: string) => {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
 };
 
-export const DDayWidget = ({ title, targetDate, startDate }: DDayWidgetProps) => {
-  const { remainingDays } = useMemo(() => {
+export const DDayWidget = ({ title, targetDate, textColor, remainingColor, backgroundColor }: DDayWidgetProps) => {
+  const remainingDays = useMemo(() => {
+    const target = parseDate(targetDate);
+    if (!target) return null;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const target = parseDate(targetDate);
-    const start = parseDate(startDate);
-
-    if (!target || !start) {
-      return { remainingDays: null };
-    }
-
-    const remaining = Math.ceil((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-    const total = Math.max(1, (target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-    const elapsed = Math.max(0, Math.min(total, (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-
-    return {
-      remainingDays: remaining,
-      progress: Math.round((elapsed / total) * 100),
-      formattedDate: target.toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        weekday: "short",
-      }),
-    };
-  }, [targetDate, startDate]);
+    // 서머타임 등으로 하루 길이가 달라도 날짜 차이가 정수가 되도록 반올림
+    return Math.round((target.getTime() - today.getTime()) / DAY_MS);
+  }, [targetDate]);
 
   const dDayLabel =
     remainingDays === null
@@ -57,21 +46,22 @@ export const DDayWidget = ({ title, targetDate, startDate }: DDayWidgetProps) =>
           ? "D-DAY"
           : `D+${Math.abs(remainingDays)}`;
 
-  return (
-    <div className="flex h-[300px] w-[300px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 font-sans text-gray-800 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between"></div>
+  const displayTitle = title.slice(0, 24); // 최대 24자까지 표시, 그 이상은 잘라냄
 
+  return (
+    <div
+      className="flex h-[150px] w-[240px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-200 p-4 font-sans shadow-sm"
+      style={{ backgroundColor, color: textColor }}
+    >
       {/* D-Day */}
-      <div className="my-auto flex flex-col items-center justify-center">
+      <div className="flex w-full flex-col items-center justify-center text-center">
+        <h3 className="text-center text-sm font-semibold">{displayTitle}</h3>
         <span
-          className={`text-center text-[42px] font-bold tracking-tight ${
-            dDayLabel === "D-DAY" ? "text-green-500" : "text-[#4285F4]"
-          }`}
+          className="mt-1 text-center text-5xl font-bold leading-none tracking-tight"
+          style={{ color: remainingColor }}
         >
           {dDayLabel}
         </span>
-        <h3 className="mt-1 truncate text-base font-semibold">{title}</h3>
       </div>
     </div>
   );
