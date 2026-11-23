@@ -71,7 +71,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
 
   return createPortal(
     <motion.div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-4 font-pretendard"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-3 font-pretendard md:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -92,8 +92,8 @@ export const Settings = ({ onClose }: SettingsProps) => {
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
         {/* 헤더 섹션 */}
-        <section className="flex shrink-0 items-center justify-between px-7 pt-6">
-          <h2 className="text-2xl font-bold">설정</h2>
+        <section className="flex shrink-0 items-center justify-between px-5 pt-5 md:px-7 md:pt-6">
+          <h2 className="text-xl font-bold md:text-2xl">설정</h2>
           <button
             type="button"
             aria-label="설정 닫기"
@@ -105,7 +105,8 @@ export const Settings = ({ onClose }: SettingsProps) => {
         </section>
 
         {/* 메뉴 섹션 */}
-        <section role="tablist" className="mx-7 mt-4 flex shrink-0 gap-6 border-b border-white/15">
+        <section role="tablist" // 좁은 화면에서는 탭이 줄바꿈되지 않고 가로로 스크롤된다
+          className="mx-5 mt-4 flex shrink-0 gap-4 overflow-x-auto border-b border-white/15 [scrollbar-width:none] md:mx-7 md:gap-6 [&::-webkit-scrollbar]:hidden">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -113,7 +114,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
               role="tab"
               aria-selected={item.id === tab}
               onClick={() => setTab(item.id)}
-              className={`-mb-px cursor-pointer border-b-2 pb-2.5 text-sm transition-colors duration-200 ${
+              className={`-mb-px shrink-0 cursor-pointer border-b-2 pb-2.5 text-sm transition-colors duration-200 ${
                 item.id === tab
                   ? "border-white font-semibold text-white"
                   : item.id === "news" && hasUnreadNews
@@ -129,7 +130,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
         {/* 설정 섹션 */}
         <section
           role="tabpanel"
-          className="min-h-0 flex-1 overflow-y-auto px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="min-h-0 flex-1 overflow-y-auto px-5 md:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {tab === "general" && (
             <GeneralSection settings={settings} onChange={(patch) => setSettings((prev) => ({ ...prev, ...patch }))} />
@@ -142,7 +143,7 @@ export const Settings = ({ onClose }: SettingsProps) => {
 
         {/* 저장 / 취소 섹션 (도움말·새 소식은 바꿀 값이 없으므로 표시하지 않음) */}
         {tab !== "help" && tab !== "news" && (
-          <section className="shrink-0 border-t border-white/15 px-7 py-4">
+          <section className="shrink-0 border-t border-white/15 px-5 py-4 md:px-7">
             {saveError && <p className="mb-3 text-xs text-red-300">{saveError}</p>}
             <div className="flex items-center justify-between gap-3">
               {tab === "general" ? (

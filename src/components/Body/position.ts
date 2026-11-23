@@ -28,6 +28,31 @@ export const toPixel = (ratio: Position, size: Size): Position => ({
   y: ratio.y * size.height,
 });
 
+const clampRatio = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
+
+/**
+ * 픽셀 좌표 -> 위젯이 움직일 수 있는 공간(컨테이너 - 위젯 크기) 대비 비율(0~1). 위젯 위치의 저장 형식
+ *
+ * 0이면 왼쪽(위) 끝, 0.5면 중앙, 1이면 오른쪽(아래) 끝에 붙는다.
+ * 컨테이너 대비 비율(toRatio)로 저장하면 화면 크기에 따라 위젯 크기 비율이 달라질 때 중앙·끝 정렬이 틀어지지만,
+ * 이 방식은 위젯 크기와 관계없이 끝·중앙 정렬이 유지되고 항상 영역 안에 놓인다
+ */
+export const toAnchorRatio = (position: Position, container: Size, widget: Size): Position => {
+  const freeWidth = container.width - widget.width;
+  const freeHeight = container.height - widget.height;
+
+  return {
+    x: freeWidth > 0 ? clampRatio(position.x / freeWidth) : 0,
+    y: freeHeight > 0 ? clampRatio(position.y / freeHeight) : 0,
+  };
+};
+
+/** 움직일 수 있는 공간 대비 비율 -> 현재 컨테이너·위젯 크기에서의 픽셀 좌표 (toAnchorRatio의 반대) */
+export const fromAnchorRatio = (ratio: Position, container: Size, widget: Size): Position => ({
+  x: clampRatio(ratio.x) * Math.max(0, container.width - widget.width),
+  y: clampRatio(ratio.y) * Math.max(0, container.height - widget.height),
+});
+
 export type Rect = Position & Size;
 
 /** 두 위젯이 겹치거나 gap보다 가까이 붙어 있는지 확인한다 (정확히 gap만큼 떨어져 있으면 충돌이 아니다) */
@@ -190,4 +215,37 @@ export const findNearestFreePosition = ({
   }
 
   return best;
+};
+
+export type PlacedWidget = { id: string; position: Position; size: Size };
+
+/**
+ * 위젯을 목록 순서대로 놓으면서, 앞서 놓인 위젯과 겹치거나 gap보다 가까우면 가장 가까운 빈자리(바로 옆 gap 간격 포함)로 옮긴다.
+ * 화면 크기가 바뀌어 위젯 크기 비율이 달라지면 저장된 위치끼리 겹칠 수 있어서, 화면에 그릴 때만 사용한다 (저장값은 바꾸지 않는다).
+ * 빈자리가 없으면 원래 위치에 둔다
+ */
+export const resolveOverlaps = (widgets: PlacedWidget[], container: Size, gap: number): Map<string, Position> => {
+  const placed: Rect[] = [];
+  const result = new Map<string, Position>();
+
+  for (const widget of widgets) {
+    const max = {
+      x: Math.max(0, container.width - widget.size.width),
+      y: Math.max(0, container.height - widget.size.height),
+    };
+    const position =
+      findNearestFreePosition({
+        desired: widget.position,
+        size: widget.size,
+        max,
+        others: placed,
+        gap,
+        normalize: (candidate) => clampPosition(candidate, max),
+      }) ?? widget.position;
+
+    placed.push({ ...position, ...widget.size });
+    result.set(widget.id, position);
+  }
+
+  return result;
 };

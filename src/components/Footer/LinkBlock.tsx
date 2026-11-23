@@ -16,7 +16,7 @@ export const LinkBlock = ({ imageUrl, href }: LinkBlockProps) => {
         alt="test"
         loading="lazy"
         decoding="async"
-        className="h-15 w-15 cursor-pointer rounded-[10px] object-cover pointer-events-none select-none"
+        className="h-12 w-12 cursor-pointer rounded-[10px] object-cover pointer-events-none select-none md:h-15 md:w-15"
         onClick={() => {
           if (href) {
             window.open(href, linkTarget);

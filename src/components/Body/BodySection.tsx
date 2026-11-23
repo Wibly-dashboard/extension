@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import Draggable, { type DraggableData } from "react-draggable";
 import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
 import { deleteWidget, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import { createLocalStore } from "../../hooks/localStore";
+import { useWidgetScale } from "../../hooks/useWidgetScale";
 import { findCatalogItem } from "../Widgets/widgetCatalog";
 import type { WidgetCatalogItem, WidgetOptions } from "../../types/widget";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import {
   clampPosition,
   findNearestFreePosition,
+  fromAnchorRatio,
   REFERENCE_SIZE,
+  resolveOverlaps,
+  toAnchorRatio,
   toPixel,
-  toRatio,
   type Position,
   type Rect,
   type Size,
@@ -25,12 +28,15 @@ type Widget = {
   component: React.ReactNode;
   options: WidgetOptions; // 편집 창에서 저장한 위젯 옵션
   editor?: WidgetCatalogItem["editor"]; // 편집 창에 표시할 위젯별 편집 항목
-  position: Position; // 컨테이너 대비 비율(0~1)로 저장되는 위치. 화면 크기가 바뀌어도 배치가 유지됨
+  // 움직일 수 있는 공간(컨테이너 - 위젯 크기) 대비 비율(0~1)로 저장되는 위치 (position.ts의 toAnchorRatio).
+  // 화면 크기가 바뀌어도 왼쪽 끝·중앙·오른쪽 끝 정렬이 유지됨
+  position: Position;
 };
 
 type WidgetItemProps = {
   widget: Widget;
   pixelPosition: Position; // 현재 컨테이너 크기에서 실제로 렌더링할 픽셀 위치
+  scale: number; // 기준 화면(2560×1271) 대비 위젯 배율 (scale.ts)
   isDragging: boolean; // 현재 드래그 중인 위젯인지 여부
   onStart: (id: string) => void; // 드래그 시작 시 위젯 ID를 처리하는 콜백
   onStop: (id: string, data: DraggableData) => void; // 드래그 종료 시 위치를 처리하는 콜백
@@ -49,15 +55,28 @@ type LayoutOptions = {
 const CENTER_SNAP_THRESHOLD = 15;
 const NEIGHBOR_SNAP_THRESHOLD = 20; // 다른 위젯 옆자리·화면 끝이 이 거리(px) 안이면 정확히 간격을 맞춰 붙인다
 const DRAG_CLICK_THRESHOLD = 3; // 이 거리(px) 이하로 움직이면 드래그가 아닌 클릭으로 본다
-// 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
-const STORAGE_KEY = "dashboard-widgets-v2";
+// 위치 저장 형식이 바뀔 때마다 이전 형식과 섞이지 않도록 키를 분리한다
+// - dashboard-widgets: 픽셀 좌표
+// - dashboard-widgets-v2: 컨테이너 대비 비율
+// - dashboard-widgets-v3: 움직일 수 있는 공간 대비 비율 (현재)
+const STORAGE_KEY = "dashboard-widgets-v3";
+const LEGACY_STORAGE_KEY = "dashboard-widgets-v2";
 
-// 확장 프로그램에서는 chrome.storage.local, 개발 서버에서는 localStorage에 저장된다
-const positionsStore = createLocalStore<Record<string, Position>>(STORAGE_KEY, (saved) =>
-  saved && typeof saved === "object" ? (saved as Record<string, Position>) : {},
-);
+const parsePositions = (saved: unknown) =>
+  saved && typeof saved === "object" ? (saved as Record<string, Position>) : null;
 
-const readSavedPositions = () => positionsStore.get();
+// 확장 프로그램에서는 chrome.storage.local, 개발 서버에서는 localStorage에 저장된다.
+// 한 번도 저장한 적이 없으면 null (이전 형식에서 옮겨 와야 하는지 판단하는 데 사용)
+const positionsStore = createLocalStore<Record<string, Position> | null>(STORAGE_KEY, parsePositions);
+const legacyPositionsStore = createLocalStore<Record<string, Position> | null>(LEGACY_STORAGE_KEY, parsePositions);
+
+const readSavedPositions = () => positionsStore.get() ?? {};
+
+const measureWidget = (id: string): Size | undefined => {
+  const node = document.getElementById(`widget-${id}`);
+
+  return node ? { width: node.offsetWidth, height: node.offsetHeight } : undefined;
+};
 
 const snapPosition = (value: number, size: number, containerLength: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
@@ -101,25 +120,39 @@ const getBoundedPosition = (
 };
 
 const snapToContainerCenter = (position: Position, size: Size, node: HTMLElement): Position => {
-  const centeredX = Math.round((size.width - node.offsetWidth) / 2);
+  // 반올림하지 않아야 저장되는 비율이 정확히 0.5가 되어 어떤 화면에서도 중앙에 놓인다
+  const centeredX = (size.width - node.offsetWidth) / 2;
   const widgetCenter = position.x + node.offsetWidth / 2;
   const containerCenter = size.width / 2;
 
   return Math.abs(widgetCenter - containerCenter) <= CENTER_SNAP_THRESHOLD ? { ...position, x: centeredX } : position;
 };
 
-// 저장된 비율 위치를 현재 컨테이너 크기의 픽셀 위치로 변환 (표시용으로만 경계 보정, 저장값은 변경하지 않음)
-const getWidgetPixelPosition = (widget: Widget, size: Size): Position => {
-  const pixel = toPixel(widget.position, size);
-  const node = document.getElementById(`widget-${widget.id}`);
+/**
+ * 저장된 비율 위치를 현재 컨테이너 크기에서 실제로 그릴 픽셀 위치로 바꾼다.
+ * 화면 크기가 바뀌어 위젯끼리 겹치면 겹치지 않는 가장 가까운 자리로 옮겨 그린다 (저장값은 바꾸지 않아 큰 화면으로 돌아가면 원래 배치로 돌아온다)
+ */
+const getDisplayPositions = (widgets: Widget[], size: Size, gap: number): Map<string, Position> => {
+  const measured = widgets.flatMap((widget) => {
+    const widgetSize = measureWidget(widget.id);
 
-  return node ? clampPosition(pixel, getMaxPosition(size, node)) : pixel;
+    return widgetSize ? [{ id: widget.id, position: fromAnchorRatio(widget.position, size, widgetSize), size: widgetSize }] : [];
+  });
+  const positions = resolveOverlaps(measured, size, gap);
+
+  // 아직 그려지지 않아 크기를 모르는 위젯 (첫 렌더링). 그린 직후 다시 계산된다
+  for (const widget of widgets) {
+    if (!positions.has(widget.id)) positions.set(widget.id, fromAnchorRatio(widget.position, size, { width: 0, height: 0 }));
+  }
+
+  return positions;
 };
 
 const WidgetItem = ({
   // 개별 위젯 아이템 컴포넌트
   widget,
   pixelPosition,
+  scale,
   isDragging,
   onStart,
   onStop,
@@ -180,7 +213,12 @@ const WidgetItem = ({
             isSelected ? "outline-2 outline-offset-3 outline-blue-500" : ""
           }`}
         >
-          {widget.component}
+          {/*
+            위젯은 기준 화면 크기로 디자인되어 있어 화면 크기에 맞게 통째로 줄이거나 키운다.
+            transform: scale과 달리 zoom은 레이아웃 크기도 함께 바뀌어, 충돌·경계 계산에 쓰는 offsetWidth/Height가 보이는 크기와 같다.
+            선택 테두리·편집 버튼은 바깥에 있어 배율과 관계없이 같은 크기로 보인다
+          */}
+          <div style={{ zoom: scale }}>{widget.component}</div>
         </div>
         {isSelected && (
           // 드래그 핸들 바깥에 두어 버튼을 눌러도 드래그가 시작되지 않게 한다
@@ -201,7 +239,9 @@ const WidgetItem = ({
 
 export const BodySection = () => {
   const { gridSnap, gridSize, widgetGap } = useSettings();
-  const layout: LayoutOptions = { gridSnap, gridSize, widgetGap };
+  const scale = useWidgetScale();
+  // 그리드·간격도 위젯과 같은 비율로 줄여, 기준 화면에서 맞춘 간격이 작은 화면에서 상대적으로 벌어지지 않게 한다
+  const layout: LayoutOptions = { gridSnap, gridSize: gridSize * scale, widgetGap: widgetGap * scale };
   const containerRef = useRef<HTMLDivElement>(null); // 드래그 가능한 영역의 참조
   const [draggingId, setDraggingId] = useState<string | null>(null); // 현재 드래그 중인 위젯의 ID 상태
   const [containerSize, setContainerSize] = useState<Size>(REFERENCE_SIZE); // 현재 드래그 영역의 크기
@@ -211,6 +251,13 @@ export const BodySection = () => {
   const closeEditor = useCallback(() => setEditingId(null), []);
   const addedWidgets = useAddedWidgets(); // 위젯 라이브러리에서 추가한 위젯
   const [savedPositions, setSavedPositions] = useState(readSavedPositions); // 사용자가 옮긴 위젯의 비율 위치
+  const [, remeasure] = useReducer((count: number) => count + 1, 0);
+
+  useLayoutEffect(() => {
+    // 표시 위치의 경계 보정은 렌더링 중 DOM에서 위젯 크기를 읽으므로, 배율·영역 크기가 바뀐 렌더링에서는 바뀌기 전 크기를 읽는다.
+    // 바뀐 크기가 화면에 그려지기 전에 한 번 더 렌더링해 새 크기로 보정한다
+    remeasure();
+  }, [scale, containerSize]);
 
   const widgets = useMemo<Widget[]>(
     () =>
@@ -235,6 +282,36 @@ export const BodySection = () => {
     [addedWidgets, savedPositions],
   );
 
+  // 이전 형식(컨테이너 대비 비율)으로 저장된 위치가 있으면, 지금 화면에 보이는 위치 그대로 새 형식으로 한 번 옮긴다
+  const [needsMigration, setNeedsMigration] = useState(() => positionsStore.get() === null);
+
+  useLayoutEffect(() => {
+    if (!needsMigration) return;
+
+    const container = containerRef.current;
+    if (!container || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+
+    const size = { width: container.clientWidth, height: container.clientHeight };
+    const legacy = legacyPositionsStore.get() ?? {};
+    const migrated = Object.fromEntries(
+      widgets.flatMap((widget) => {
+        const widgetSize = measureWidget(widget.id);
+        if (!widgetSize) return [];
+
+        const max = { x: Math.max(0, size.width - widgetSize.width), y: Math.max(0, size.height - widgetSize.height) };
+        const pixel = clampPosition(toPixel(legacy[widget.id] ?? widget.position, size), max);
+
+        return [[widget.id, toAnchorRatio(pixel, size, widgetSize)]];
+      }),
+    );
+
+    setSavedPositions(migrated);
+    setNeedsMigration(false);
+  }, [needsMigration, widgets]);
+
+  // 이번 렌더링에서 실제로 그릴 위치 (겹침 보정 포함)
+  const displayPositions = getDisplayPositions(widgets, containerSize, layout.widgetGap);
+
   const findAvailablePosition = (
     id: string,
     desiredPosition: Position,
@@ -248,14 +325,12 @@ export const BodySection = () => {
     for (const widget of widgetList) {
       if (widget.id === id) continue;
 
-      const otherNode = document.getElementById(`widget-${widget.id}`);
-      if (!otherNode) continue;
+      const otherSize = measureWidget(widget.id);
+      const otherPosition = displayPositions.get(widget.id);
+      if (!otherSize || !otherPosition) continue;
 
-      otherRects.push({
-        ...getWidgetPixelPosition(widget, size),
-        width: otherNode.offsetWidth,
-        height: otherNode.offsetHeight,
-      });
+      // 다른 위젯은 화면에 보이는 위치(겹침 보정 후)를 기준으로 피한다
+      otherRects.push({ ...otherPosition, ...otherSize });
     }
 
     return findNearestFreePosition({
@@ -283,13 +358,14 @@ export const BodySection = () => {
     const boundedPosition = getBoundedPosition({ x: data.x, y: data.y }, containerSize, node, layout);
     const nextPosition = snapToContainerCenter(boundedPosition, containerSize, node);
 
+    const widgetSize = { width: node.offsetWidth, height: node.offsetHeight };
     const availablePosition = findAvailablePosition(id, nextPosition, containerSize, node, widgets);
     const currentPosition =
-      widgets.find((widget) => widget.id === id)?.position ?? toRatio(nextPosition, containerSize);
+      widgets.find((widget) => widget.id === id)?.position ?? toAnchorRatio(nextPosition, containerSize, widgetSize);
 
     setSavedPositions((prev) => ({
       ...prev,
-      [id]: availablePosition ? toRatio(availablePosition, containerSize) : currentPosition,
+      [id]: availablePosition ? toAnchorRatio(availablePosition, containerSize, widgetSize) : currentPosition,
     }));
   };
 
@@ -339,10 +415,13 @@ export const BodySection = () => {
 
   useEffect(() => {
     // 위젯 위치 변경 시 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
+    // 이전 형식에서 옮겨 오기 전에는 저장하지 않는다 (옮기기 전 값이 새 형식으로 저장되지 않도록)
+    if (needsMigration) return;
+
     const positions = Object.fromEntries(widgets.map((widget) => [widget.id, widget.position]));
 
     positionsStore.set(positions);
-  }, [widgets]);
+  }, [widgets, needsMigration]);
 
   return (
     // 위젯 위치는 항상 영역 안으로 보정되므로 잘라낼 필요가 없다.
@@ -352,7 +431,8 @@ export const BodySection = () => {
         <WidgetItem
           key={widget.id}
           widget={widget}
-          pixelPosition={getWidgetPixelPosition(widget, containerSize)}
+          pixelPosition={displayPositions.get(widget.id) ?? { x: 0, y: 0 }}
+          scale={scale}
           isDragging={draggingId === widget.id}
           onStart={setDraggingId}
           onStop={(id, data) => {
