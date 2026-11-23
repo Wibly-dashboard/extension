@@ -161,9 +161,9 @@ export const BottomNavigator = () => {
       transition={layoutTransition}
       // 레이아웃 전환 중 크기가 바뀌어도 모서리가 찌그러지지 않도록 borderRadius는 style로 지정
       style={{ borderRadius: 20 }}
-      className="flex h-[80px] w-fit items-center justify-center px-[25px] glass bg-[#C4C4C4]/40" // 설정에서 배경 색상 변경 가능하게 만들기
+      className="flex h-[64px] w-fit max-w-full items-center justify-center px-4 glass bg-[#C4C4C4]/40 md:h-[80px] md:px-[25px]" // 설정에서 배경 색상 변경 가능하게 만들기
     >
-      <section className="flex gap-3">
+      <section className="flex gap-2 md:gap-3">
         {/* 빠른 링크만 순서를 바꿀 수 있고, 위젯 추가·설정 버튼은 항상 뒤에 고정된다 */}
         <Reorder.Group
           ref={linkGroupRef}
@@ -171,7 +171,7 @@ export const BottomNavigator = () => {
           values={displayedLinks}
           onReorder={setDraggingLinks}
           // 링크가 하나도 없으면 빈 그룹이 gap을 차지해 왼쪽 여백이 커 보이므로 숨긴다 (마지막 링크의 exit 애니메이션이 끝난 뒤 비게 됨)
-          className="relative flex gap-3 empty:hidden"
+          className="relative flex gap-2 empty:hidden md:gap-3"
         >
           <AnimatePresence mode="popLayout">
             {displayedLinks.map((link, index) => (
@@ -207,7 +207,7 @@ export const BottomNavigator = () => {
                     loading="lazy"
                     decoding="async"
                     draggable={false}
-                    className="h-15 w-15 cursor-pointer rounded-[10px] object-cover"
+                    className="h-12 w-12 cursor-pointer rounded-[10px] object-cover md:h-15 md:w-15"
                     animate={
                       pressedLinkId === link.id
                         ? linkIconAnimation.pressed
@@ -238,9 +238,9 @@ export const BottomNavigator = () => {
           type="button"
           aria-label="위젯 추가"
           onClick={() => setIsWidgetLibraryOpen(true)}
-          className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-[10px] bg-[#C4C4C4]/10 transition-colors duration-300 hover:bg-[#fefefe]"
+          className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-[10px] bg-[#C4C4C4]/10 md:h-15 md:w-15 transition-colors duration-300 hover:bg-[#fefefe]"
         >
-          <FaPlus className="h-full w-full p-3 text-[#C4C4C4]/80" />
+          <FaPlus className="h-full w-full p-2.5 text-[#C4C4C4]/80 md:p-3" />
         </motion.button>
         <motion.button
           layout
@@ -249,7 +249,7 @@ export const BottomNavigator = () => {
           aria-label="설정 열기"
           onClick={() => setIsSettingsOpen(true)}
         >
-          <PiSquaresFourFill className="h-15 w-15 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 p-3 text-[#C4C4C4]/80 hover:cursor-pointer hover:bg-[#fefefe] duration-300" />
+          <PiSquaresFourFill className="h-12 w-12 cursor-pointer rounded-[10px] bg-[#C4C4C4]/10 p-2.5 md:h-15 md:w-15 md:p-3 text-[#C4C4C4]/80 hover:cursor-pointer hover:bg-[#fefefe] duration-300" />
         </motion.button>
       </section>
       <AnimatePresence>{isSettingsOpen && <Settings onClose={closeSettings} />}</AnimatePresence>

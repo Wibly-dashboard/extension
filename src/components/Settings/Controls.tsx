@@ -12,10 +12,11 @@ type SettingRowProps = {
 export const SettingRow = ({ title, description, stacked = false, children }: SettingRowProps) => (
   <div
     className={`flex border-b border-white/15 py-4 last:border-b-0 ${
-      stacked ? "flex-col gap-3" : "items-center justify-between gap-6"
+      // 좁은 화면에서 제목과 컨트롤이 한 줄에 들어가지 않으면 컨트롤을 다음 줄로 내린다 (제목이 한 글자씩 줄바꿈되지 않도록)
+      stacked ? "flex-col gap-3" : "flex-wrap items-center justify-between gap-x-6 gap-y-3"
     }`}
   >
-    <div className="min-w-0">
+    <div className={stacked ? "min-w-0" : "min-w-40 flex-1"}>
       <p className="text-sm font-semibold text-white">{title}</p>
       {description && <p className="mt-0.5 text-xs text-white/60">{description}</p>}
     </div>

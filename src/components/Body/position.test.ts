@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   clampPosition,
   findNearestFreePosition,
+  fromAnchorRatio,
   isColliding,
   REFERENCE_SIZE,
+  resolveOverlaps,
+  toAnchorRatio,
   toPixel,
   toRatio,
   type Position,
@@ -159,5 +162,95 @@ describe("findNearestFreePosition", () => {
     expect(
       findNearestFreePosition({ desired: { x: 10, y: 10 }, size, max, others: [fullScreen], gap: 0, normalize: clamp }),
     ).toBeUndefined();
+  });
+});
+
+describe("toAnchorRatio / fromAnchorRatio", () => {
+  const container = { width: 1000, height: 500 };
+  const widget = { width: 200, height: 100 };
+
+  it("maps the left/top edge, center and right/bottom edge to 0, 0.5 and 1", () => {
+    expect(toAnchorRatio({ x: 0, y: 0 }, container, widget)).toEqual({ x: 0, y: 0 });
+    expect(toAnchorRatio({ x: 400, y: 200 }, container, widget)).toEqual({ x: 0.5, y: 0.5 });
+    expect(toAnchorRatio({ x: 800, y: 400 }, container, widget)).toEqual({ x: 1, y: 1 });
+  });
+
+  it("round-trips a position", () => {
+    const pixel = { x: 123, y: 45 };
+
+    const result = fromAnchorRatio(toAnchorRatio(pixel, container, widget), container, widget);
+
+    expect(result.x).toBeCloseTo(pixel.x, 6);
+    expect(result.y).toBeCloseTo(pixel.y, 6);
+  });
+
+  it("keeps a centered or edge-aligned widget aligned when the widget is scaled differently from the screen", () => {
+    // centered / right-aligned on the reference screen at scale 1
+    const centered = toAnchorRatio({ x: (2528 - 347) / 2, y: 0 }, { width: 2528, height: 1131 }, { width: 347, height: 100 });
+    const rightAligned = toAnchorRatio({ x: 2528 - 464, y: 0 }, { width: 2528, height: 1131 }, { width: 464, height: 80 });
+
+    // 150% OS scaling: the screen shrinks to 66% but the widgets only to 93%
+    const screen = { width: 1675, height: 651 };
+    const clock = { width: 347 * 0.934, height: 100 };
+    const spotify = { width: 464 * 0.934, height: 80 };
+
+    expect(fromAnchorRatio(centered, screen, clock).x + clock.width / 2).toBeCloseTo(screen.width / 2, 6);
+    expect(fromAnchorRatio(rightAligned, screen, spotify).x + spotify.width).toBeCloseTo(screen.width, 6);
+  });
+
+  it("always stays inside the container", () => {
+    expect(fromAnchorRatio({ x: 1.5, y: -0.5 }, container, widget)).toEqual({ x: 800, y: 0 });
+  });
+
+  it("puts a widget larger than the container at the origin", () => {
+    expect(toAnchorRatio({ x: 10, y: 10 }, { width: 100, height: 100 }, { width: 200, height: 200 })).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("resolveOverlaps", () => {
+  const container = { width: 1000, height: 500 };
+  const size = { width: 100, height: 100 };
+
+  it("keeps widgets that do not overlap where they are", () => {
+    const result = resolveOverlaps(
+      [
+        { id: "a", position: { x: 0, y: 0 }, size },
+        { id: "b", position: { x: 300, y: 0 }, size },
+      ],
+      container,
+      10,
+    );
+
+    expect(result.get("a")).toEqual({ x: 0, y: 0 });
+    expect(result.get("b")).toEqual({ x: 300, y: 0 });
+  });
+
+  it("moves a later widget that overlaps an earlier one to the nearest free spot, exactly gap away", () => {
+    const result = resolveOverlaps(
+      [
+        { id: "a", position: { x: 100, y: 100 }, size },
+        { id: "b", position: { x: 150, y: 100 }, size },
+      ],
+      container,
+      10,
+    );
+
+    expect(result.get("a")).toEqual({ x: 100, y: 100 });
+    expect(result.get("b")).toEqual({ x: 210, y: 100 });
+  });
+
+  it("never leaves any pair overlapping when there is room", () => {
+    const widgets = Array.from({ length: 6 }, (_, index) => ({
+      id: String(index),
+      position: { x: 400 + index * 5, y: 200 },
+      size,
+    }));
+
+    const result = resolveOverlaps(widgets, container, 10);
+    const rects = widgets.map((widget) => ({ ...result.get(widget.id)!, ...size }));
+
+    rects.forEach((a, i) =>
+      rects.slice(i + 1).forEach((b) => expect(isColliding(a, b, 10)).toBe(false)),
+    );
   });
 });

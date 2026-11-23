@@ -48,7 +48,7 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
 
   return createPortal(
     <motion.div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-4 font-pretendard"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-3 font-pretendard md:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -62,16 +62,16 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
         role="dialog"
         aria-modal="true"
         aria-label="위젯"
-        className="glass flex h-[680px] max-h-full w-[760px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
+        className="glass flex h-full max-h-full w-[760px] md:h-[680px] max-w-full flex-col overflow-hidden bg-[#C4C4C4]/40 text-white"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
         {/* 헤더 섹션 */}
-        <section className="flex shrink-0 flex-col gap-4 px-7 pt-6 pb-4">
+        <section className="flex shrink-0 flex-col gap-4 px-5 pt-5 md:px-7 md:pt-6 pb-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">위젯</h2>
+            <h2 className="text-xl font-bold md:text-2xl">위젯</h2>
             <button
               type="button"
               aria-label="위젯 창 닫기"
@@ -116,7 +116,7 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
         {/* 바디 섹션 */}
         <section
           role="tabpanel"
-          className="min-h-0 flex-1 overflow-y-auto border-t border-white/15 px-7 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="min-h-0 flex-1 overflow-y-auto border-t border-white/15 px-5 py-5 md:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {visibleItems.length > 0 ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
