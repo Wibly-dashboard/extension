@@ -2,7 +2,17 @@ import { MdLink } from "react-icons/md";
 import type { WidgetCatalogItem } from "../../../types/widget";
 import { FastLinkEditor } from "./FastLinkEditor";
 import { FastLinkWidget } from "./FastLinkWidget";
-import { parseLinkImageUrl, parseLinkName, parseLinkUrl, parseShowLinkName, toLinkHref } from "./fastLinkOptions";
+import {
+  FAST_LINK_INITIAL_OPTIONS,
+  getDisplayIconUrl,
+  parseEdited,
+  parseLinkImageUrl,
+  parseLinkName,
+  parseLinkUrl,
+  parseShowLinkName,
+  toLinkHref,
+  validateFastLink,
+} from "./fastLinkOptions";
 
 export const fastLinkWidget: WidgetCatalogItem = {
   type: "FastLink",
@@ -12,13 +22,19 @@ export const fastLinkWidget: WidgetCatalogItem = {
   color: "text-blue-200",
   background: "bg-blue-400/20",
   allowMultiple: true,
-  render: (options) => (
-    <FastLinkWidget
-      LinkName={parseLinkName(options.linkName)}
-      LinkUrl={toLinkHref(parseLinkUrl(options.linkUrl))}
-      LinkImageUrl={parseLinkImageUrl(options.linkImageUrl)}
-      isShowLinkName={parseShowLinkName(options.isShowLinkName)}
-    />
-  ),
+  initialOptions: FAST_LINK_INITIAL_OPTIONS,
+  validate: (options) => validateFastLink(parseLinkUrl(options.linkUrl)),
+  render: (options) => {
+    const linkUrl = parseLinkUrl(options.linkUrl);
+
+    return (
+      <FastLinkWidget
+        LinkName={parseLinkName(options.linkName)}
+        LinkUrl={toLinkHref(linkUrl)}
+        LinkImageUrl={getDisplayIconUrl(linkUrl, parseLinkImageUrl(options.linkImageUrl), parseEdited(options.iconEdited))}
+        isShowLinkName={parseShowLinkName(options.isShowLinkName)}
+      />
+    );
+  },
   editor: (props) => <FastLinkEditor {...props} />,
 };

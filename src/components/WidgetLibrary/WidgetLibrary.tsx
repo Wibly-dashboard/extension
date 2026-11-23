@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { addWidget, removeWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
-import type { WidgetType } from "../../types/widget";
+import type { WidgetCatalogItem, WidgetOptions, WidgetType } from "../../types/widget";
 import { WidgetCard } from "./WidgetCard";
 import { WIDGET_CATALOG } from "../Widgets/widgetCatalog";
+import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
+
+/** 편집 창에서 옵션을 정하는 중인 새 위젯 */
+type Draft = { item: WidgetCatalogItem; options: WidgetOptions };
 
 type WidgetLibraryProps = {
   onClose: () => void;
@@ -23,8 +27,14 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
   const addedWidgets = useAddedWidgets();
   const [filter, setFilter] = useState<FilterId>("all");
   const [query, setQuery] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const isCreating = draft !== null;
+  const closeDraft = useCallback(() => setDraft(null), []);
 
   useEffect(() => {
+    // 새 위젯 편집 창이 열려 있으면 ESC는 편집 창만 닫는다
+    if (isCreating) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -32,7 +42,20 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, isCreating]);
+
+  // 위젯을 바로 추가하지 않고, 편집 창에서 옵션을 정한 뒤 추가한다 (예: 빠른 링크는 링크를 먼저 입력)
+  // 편집할 항목이 없는 위젯은 바로 추가한다
+  const startCreate = (item: WidgetCatalogItem) => {
+    if (!item.editor) {
+      addWidget(item.type, item.allowMultiple);
+      return;
+    }
+
+    setDraft({ item, options: { ...item.initialOptions } });
+  };
+
+  const createError = draft?.item.validate?.(draft.options) ?? null;
 
   const addedCounts = new Map<WidgetType, number>();
   for (const widget of addedWidgets) addedCounts.set(widget.type, (addedCounts.get(widget.type) ?? 0) + 1);
@@ -130,7 +153,7 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
                   background={item.background}
                   addedCount={addedCounts.get(item.type) ?? 0}
                   allowMultiple={item.allowMultiple ?? false}
-                  onAdd={() => addWidget(item.type, item.allowMultiple)}
+                  onAdd={() => startCreate(item)}
                   onRemove={() => removeWidget(item.type)}
                 />
               ))}
@@ -140,6 +163,30 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
           )}
         </section>
       </motion.div>
+
+      <AnimatePresence>
+        {draft && (
+          <WidgetEditor
+            mode="create"
+            name={draft.item.name}
+            onClose={closeDraft}
+            createError={createError}
+            onCreate={() => {
+              if (createError) return;
+
+              addWidget(draft.item.type, draft.item.allowMultiple, draft.options);
+              closeDraft();
+            }}
+          >
+            {draft.item.editor?.({
+              options: draft.options,
+              // 아이콘 자동 찾기처럼 늦게 도착하는 변경도 최신 옵션에 합쳐지도록 함수형 업데이트를 쓴다
+              onChange: (options) =>
+                setDraft((prev) => (prev ? { ...prev, options: { ...prev.options, ...options } } : prev)),
+            })}
+          </WidgetEditor>
+        )}
+      </AnimatePresence>
     </motion.div>,
     document.body,
   );
