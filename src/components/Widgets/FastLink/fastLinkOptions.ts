@@ -18,6 +18,39 @@ export const parseShowLinkName = (value: unknown): boolean => (typeof value === 
 /** 사용자가 이름·아이콘을 직접 고쳤는지 여부. true면 링크를 바꿔도 자동으로 덮어쓰지 않는다 */
 export const parseEdited = (value: unknown): boolean => value === true;
 
+/** 새로 추가할 때 편집 창에 처음 채워 둘 옵션. 링크를 직접 입력해야 추가할 수 있도록 비워 둔다 */
+export const FAST_LINK_INITIAL_OPTIONS = { linkUrl: "", linkName: "", linkImageUrl: "" };
+
+/** 링크로 열 수 있는 주소인지 (도메인이 있는 http(s) 주소) */
+export const isValidLinkUrl = (linkUrl: string): boolean => {
+  if (!linkUrl.trim()) return false;
+
+  try {
+    const url = new URL(normalizeUrl(linkUrl));
+
+    return /^https?:$/.test(url.protocol) && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+};
+
+/** 위젯을 추가할 수 없는 이유. 추가할 수 있으면 null */
+export const validateFastLink = (linkUrl: string): string | null => {
+  if (!linkUrl.trim()) return "링크를 입력해 주세요.";
+
+  return isValidLinkUrl(linkUrl) ? null : "올바른 링크를 입력해 주세요. (예: naver.com)";
+};
+
+/**
+ * 위젯에 표시할 아이콘 주소.
+ * 아이콘을 자동으로 찾기 전에 위젯을 추가했으면(아이콘이 비어 있고 직접 고치지 않음) 구글 파비콘 서비스로 대신 보여준다
+ */
+export const getDisplayIconUrl = (linkUrl: string, linkImageUrl: string, iconEdited: boolean): string => {
+  if (linkImageUrl.trim() || iconEdited || !isValidLinkUrl(linkUrl)) return linkImageUrl;
+
+  return `https://www.google.com/s2/favicons?domain=${new URL(normalizeUrl(linkUrl)).hostname}&sz=128`;
+};
+
 /** 위젯을 눌렀을 때 이동할 주소. 비어 있으면 이동하지 않는다 */
 export const toLinkHref = (linkUrl: string): string | undefined => (linkUrl.trim() ? normalizeUrl(linkUrl) : undefined);
 

@@ -1,9 +1,6 @@
 import type { AddedWidget, WidgetOptions, WidgetType } from "../types/widget";
 import { createLocalStore, useLocalStore } from "./localStore";
 
-// 새 위젯이 놓일 수 있는 비율 범위. 위치는 움직일 수 있는 공간 대비 비율(0~1)이라 어느 값이든 화면 안에 놓인다 (position.ts의 toAnchorRatio)
-const MAX_RANDOM_RATIO = 1;
-
 const parseAddedWidgets = (saved: unknown): AddedWidget[] => (Array.isArray(saved) ? (saved as AddedWidget[]) : []);
 
 export const addedWidgetsStore = createLocalStore<AddedWidget[]>("dashboard-added-widgets", parseAddedWidgets);
@@ -12,10 +9,11 @@ export const addedWidgetsStore = createLocalStore<AddedWidget[]>("dashboard-adde
 export const useAddedWidgets = () => useLocalStore(addedWidgetsStore);
 
 /**
- * 위젯을 대시보드의 임의 위치에 추가한다 (다른 위젯과의 충돌 판정 없음)
+ * 편집 창에서 정한 옵션으로 위젯을 대시보드에 추가한다.
+ * 위치는 비워 두고, 대시보드(BodySection)가 위젯 크기를 잰 뒤 그리드·간격·충돌을 지키는 빈자리 중 임의 위치에 놓는다.
  * allowMultiple이 false면 같은 종류의 위젯이 이미 있을 때 추가하지 않는다
  */
-export const addWidget = (type: WidgetType, allowMultiple = false) => {
+export const addWidget = (type: WidgetType, allowMultiple = false, options: WidgetOptions = {}) => {
   const widgets = addedWidgetsStore.get();
   if (!allowMultiple && widgets.some((widget) => widget.type === type)) return;
 
@@ -26,7 +24,7 @@ export const addWidget = (type: WidgetType, allowMultiple = false) => {
       // (여러 개 추가 가능한 위젯을 빠르게 연달아 추가해도 겹치지 않도록 임의 값을 덧붙인다)
       id: `library-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type,
-      position: { x: Math.random() * MAX_RANDOM_RATIO, y: Math.random() * MAX_RANDOM_RATIO },
+      options,
     },
   ]);
 };
@@ -39,6 +37,15 @@ export const removeWidget = (type: WidgetType) => {
 /** 대시보드에 놓인 위젯을 삭제한다 */
 export const deleteWidget = (id: string) => {
   addedWidgetsStore.set(addedWidgetsStore.get().filter((widget) => widget.id !== id));
+};
+
+/** 새로 추가한 위젯의 자리를 정한다 (위젯 ID -> 움직일 수 있는 공간 대비 비율 위치) */
+export const placeWidgets = (positions: Record<string, { x: number; y: number }>) => {
+  addedWidgetsStore.set(
+    addedWidgetsStore
+      .get()
+      .map((widget) => (positions[widget.id] ? { ...widget, position: positions[widget.id] } : widget)),
+  );
 };
 
 /** 대시보드에 놓인 위젯의 편집 옵션을 바꾼다 (기존 옵션에 덮어쓴다) */
