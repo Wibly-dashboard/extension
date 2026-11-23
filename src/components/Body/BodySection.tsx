@@ -3,7 +3,7 @@ import Draggable, { type DraggableData } from "react-draggable";
 import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
-import { deleteWidget, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
+import { deleteWidget, placeWidgets, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
 import { createLocalStore } from "../../hooks/localStore";
 import { useWidgetScale } from "../../hooks/useWidgetScale";
 import { findCatalogItem } from "../Widgets/widgetCatalog";
@@ -12,6 +12,7 @@ import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
 import {
   clampPosition,
   findNearestFreePosition,
+  findRandomFreePosition,
   fromAnchorRatio,
   REFERENCE_SIZE,
   resolveOverlaps,
@@ -29,8 +30,9 @@ type Widget = {
   options: WidgetOptions; // 편집 창에서 저장한 위젯 옵션
   editor?: WidgetCatalogItem["editor"]; // 편집 창에 표시할 위젯별 편집 항목
   // 움직일 수 있는 공간(컨테이너 - 위젯 크기) 대비 비율(0~1)로 저장되는 위치 (position.ts의 toAnchorRatio).
-  // 화면 크기가 바뀌어도 왼쪽 끝·중앙·오른쪽 끝 정렬이 유지됨
-  position: Position;
+  // 화면 크기가 바뀌어도 왼쪽 끝·중앙·오른쪽 끝 정렬이 유지됨.
+  // 새로 추가해 아직 자리를 정하지 못한 위젯은 undefined (크기를 잰 뒤 빈자리에 놓는다)
+  position?: Position;
 };
 
 type WidgetItemProps = {
@@ -38,6 +40,7 @@ type WidgetItemProps = {
   pixelPosition: Position; // 현재 컨테이너 크기에서 실제로 렌더링할 픽셀 위치
   scale: number; // 기준 화면(2560×1271) 대비 위젯 배율 (scale.ts)
   isDragging: boolean; // 현재 드래그 중인 위젯인지 여부
+  isPlacing: boolean; // 새로 추가해 크기를 재는 중인 위젯인지 여부 (자리를 정하기 전까지 보이지 않게 한다)
   onStart: (id: string) => void; // 드래그 시작 시 위젯 ID를 처리하는 콜백
   onStop: (id: string, data: DraggableData) => void; // 드래그 종료 시 위치를 처리하는 콜백
   isSelected: boolean; // 우클릭으로 선택된 위젯인지 여부
@@ -55,6 +58,7 @@ type LayoutOptions = {
 const CENTER_SNAP_THRESHOLD = 15;
 const NEIGHBOR_SNAP_THRESHOLD = 20; // 다른 위젯 옆자리·화면 끝이 이 거리(px) 안이면 정확히 간격을 맞춰 붙인다
 const DRAG_CLICK_THRESHOLD = 3; // 이 거리(px) 이하로 움직이면 드래그가 아닌 클릭으로 본다
+const RANDOM_PLACEMENT_STEP = 20; // 그리드 정렬이 꺼져 있을 때 새 위젯을 놓을 후보 좌표 간격(px)
 // 위치 저장 형식이 바뀔 때마다 이전 형식과 섞이지 않도록 키를 분리한다
 // - dashboard-widgets: 픽셀 좌표
 // - dashboard-widgets-v2: 컨테이너 대비 비율
@@ -133,20 +137,37 @@ const snapToContainerCenter = (position: Position, size: Size, node: HTMLElement
  * 화면 크기가 바뀌어 위젯끼리 겹치면 겹치지 않는 가장 가까운 자리로 옮겨 그린다 (저장값은 바꾸지 않아 큰 화면으로 돌아가면 원래 배치로 돌아온다)
  */
 const getDisplayPositions = (widgets: Widget[], size: Size, gap: number): Map<string, Position> => {
-  const measured = widgets.flatMap((widget) => {
-    const widgetSize = measureWidget(widget.id);
+  // 자리를 정하기 전인 새 위젯은 겹침 보정에서 빼서 다른 위젯을 밀어내지 않게 한다
+  const measured = widgets.flatMap(({ id, position }) => {
+    const widgetSize = measureWidget(id);
 
-    return widgetSize ? [{ id: widget.id, position: fromAnchorRatio(widget.position, size, widgetSize), size: widgetSize }] : [];
+    return position && widgetSize ? [{ id, position: fromAnchorRatio(position, size, widgetSize), size: widgetSize }] : [];
   });
   const positions = resolveOverlaps(measured, size, gap);
 
-  // 아직 그려지지 않아 크기를 모르는 위젯 (첫 렌더링). 그린 직후 다시 계산된다
+  // 아직 그려지지 않아 크기를 모르는 위젯 (첫 렌더링)과 자리를 정하기 전인 새 위젯. 그린 직후 다시 계산된다
   for (const widget of widgets) {
-    if (!positions.has(widget.id)) positions.set(widget.id, fromAnchorRatio(widget.position, size, { width: 0, height: 0 }));
+    if (positions.has(widget.id)) continue;
+
+    positions.set(
+      widget.id,
+      widget.position ? fromAnchorRatio(widget.position, size, { width: 0, height: 0 }) : { x: 0, y: 0 },
+    );
   }
 
   return positions;
 };
+
+/** 화면에 놓인(자리가 정해진) 위젯들의 실제 사각형. 새 위젯을 놓거나 옮길 때 피해야 할 영역 */
+const getPlacedRects = (widgets: Widget[], displayPositions: Map<string, Position>, excludeId?: string): Rect[] =>
+  widgets.flatMap((widget) => {
+    if (widget.id === excludeId || !widget.position) return [];
+
+    const size = measureWidget(widget.id);
+    const position = displayPositions.get(widget.id);
+
+    return size && position ? [{ ...position, ...size }] : [];
+  });
 
 const WidgetItem = ({
   // 개별 위젯 아이템 컴포넌트
@@ -154,6 +175,7 @@ const WidgetItem = ({
   pixelPosition,
   scale,
   isDragging,
+  isPlacing,
   onStart,
   onStop,
   isSelected,
@@ -191,7 +213,9 @@ const WidgetItem = ({
         ref={nodeRef}
         id={`widget-${widget.id}`}
         // will-change-transform: 위젯을 별도 합성 레이어로 올려 드래그 중 배경과 다른 위젯을 다시 그리지 않게 한다
-        className={`absolute left-0 top-0 w-fit will-change-transform ${isDragging || isSelected ? "z-50" : "z-0"}`}
+        className={`absolute left-0 top-0 w-fit will-change-transform ${isDragging || isSelected ? "z-50" : "z-0"} ${
+          isPlacing ? "pointer-events-none invisible" : ""
+        }`}
         onClickCapture={(event) => {
           // 드래그를 끝내며 마우스를 놓을 때 발생하는 클릭이 위젯 안의 링크·버튼으로 전달되지 않게 막는다
           if (!wasDraggedRef.current) return;
@@ -241,7 +265,10 @@ export const BodySection = () => {
   const { gridSnap, gridSize, widgetGap } = useSettings();
   const scale = useWidgetScale();
   // 그리드·간격도 위젯과 같은 비율로 줄여, 기준 화면에서 맞춘 간격이 작은 화면에서 상대적으로 벌어지지 않게 한다
-  const layout: LayoutOptions = { gridSnap, gridSize: gridSize * scale, widgetGap: widgetGap * scale };
+  const layout = useMemo<LayoutOptions>(
+    () => ({ gridSnap, gridSize: gridSize * scale, widgetGap: widgetGap * scale }),
+    [gridSnap, gridSize, widgetGap, scale],
+  );
   const containerRef = useRef<HTMLDivElement>(null); // 드래그 가능한 영역의 참조
   const [draggingId, setDraggingId] = useState<string | null>(null); // 현재 드래그 중인 위젯의 ID 상태
   const [containerSize, setContainerSize] = useState<Size>(REFERENCE_SIZE); // 현재 드래그 영역의 크기
@@ -296,10 +323,11 @@ export const BodySection = () => {
     const migrated = Object.fromEntries(
       widgets.flatMap((widget) => {
         const widgetSize = measureWidget(widget.id);
-        if (!widgetSize) return [];
+        const ratio = legacy[widget.id] ?? widget.position;
+        if (!widgetSize || !ratio) return [];
 
         const max = { x: Math.max(0, size.width - widgetSize.width), y: Math.max(0, size.height - widgetSize.height) };
-        const pixel = clampPosition(toPixel(legacy[widget.id] ?? widget.position, size), max);
+        const pixel = clampPosition(toPixel(ratio, size), max);
 
         return [[widget.id, toAnchorRatio(pixel, size, widgetSize)]];
       }),
@@ -312,6 +340,47 @@ export const BodySection = () => {
   // 이번 렌더링에서 실제로 그릴 위치 (겹침 보정 포함)
   const displayPositions = getDisplayPositions(widgets, containerSize, layout.widgetGap);
 
+  useLayoutEffect(() => {
+    // 새로 추가한 위젯은 (보이지 않게) 한 번 그려 크기를 잰 뒤, 그리드·간격·충돌을 지키는 빈자리 중 임의 위치에 놓는다.
+    // 화면에 그려지기 전에 자리를 정하므로 (0, 0)에 잠깐 보였다가 옮겨지지 않는다
+    if (needsMigration) return;
+
+    const pending = widgets.filter((widget) => !widget.position);
+    if (pending.length === 0) return;
+
+    const container = containerRef.current;
+    if (!container || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+
+    const size = { width: container.clientWidth, height: container.clientHeight };
+    const others = getPlacedRects(widgets, getDisplayPositions(widgets, size, layout.widgetGap));
+    const placedPositions: Record<string, Position> = {};
+
+    for (const widget of pending) {
+      const node = document.getElementById(`widget-${widget.id}`);
+      if (!node) continue;
+
+      const widgetSize = { width: node.offsetWidth, height: node.offsetHeight };
+      const max = getMaxPosition(size, node);
+      const position =
+        findRandomFreePosition({
+          size: widgetSize,
+          max,
+          others,
+          gap: layout.widgetGap,
+          normalize: (candidate) => getBoundedPosition(candidate, size, node, layout),
+          step: layout.gridSnap ? layout.gridSize : RANDOM_PLACEMENT_STEP,
+        }) ??
+        // 빈자리가 없으면 아무 곳에나 놓는다 (겹친 부분은 화면에 그릴 때 가까운 빈자리로 옮겨 보여준다)
+        getBoundedPosition({ x: Math.random() * max.x, y: Math.random() * max.y }, size, node, layout);
+
+      // 한 번에 여러 개를 추가해도 서로 겹치지 않도록 방금 놓은 위젯도 피한다
+      others.push({ ...position, ...widgetSize });
+      placedPositions[widget.id] = toAnchorRatio(position, size, widgetSize);
+    }
+
+    if (Object.keys(placedPositions).length > 0) placeWidgets(placedPositions);
+  }, [widgets, needsMigration, layout]);
+
   const findAvailablePosition = (
     id: string,
     desiredPosition: Position,
@@ -319,19 +388,9 @@ export const BodySection = () => {
     node: HTMLElement,
     widgetList: Widget[],
   ): Position | undefined => {
-    // 다른 위젯의 사각형은 한 번만 측정해 재사용 (탐색 루프 안에서 DOM을 읽지 않도록)
-    const otherRects: Rect[] = [];
-
-    for (const widget of widgetList) {
-      if (widget.id === id) continue;
-
-      const otherSize = measureWidget(widget.id);
-      const otherPosition = displayPositions.get(widget.id);
-      if (!otherSize || !otherPosition) continue;
-
-      // 다른 위젯은 화면에 보이는 위치(겹침 보정 후)를 기준으로 피한다
-      otherRects.push({ ...otherPosition, ...otherSize });
-    }
+    // 다른 위젯의 사각형은 한 번만 측정해 재사용 (탐색 루프 안에서 DOM을 읽지 않도록).
+    // 다른 위젯은 화면에 보이는 위치(겹침 보정 후)를 기준으로 피한다
+    const otherRects = getPlacedRects(widgetList, displayPositions, id);
 
     return findNearestFreePosition({
       desired: desiredPosition,
@@ -418,7 +477,9 @@ export const BodySection = () => {
     // 이전 형식에서 옮겨 오기 전에는 저장하지 않는다 (옮기기 전 값이 새 형식으로 저장되지 않도록)
     if (needsMigration) return;
 
-    const positions = Object.fromEntries(widgets.map((widget) => [widget.id, widget.position]));
+    const positions = Object.fromEntries(
+      widgets.flatMap((widget) => (widget.position ? [[widget.id, widget.position]] : [])),
+    );
 
     positionsStore.set(positions);
   }, [widgets, needsMigration]);
@@ -434,6 +495,7 @@ export const BodySection = () => {
           pixelPosition={displayPositions.get(widget.id) ?? { x: 0, y: 0 }}
           scale={scale}
           isDragging={draggingId === widget.id}
+          isPlacing={!widget.position}
           onStart={setDraggingId}
           onStop={(id, data) => {
             handleStop(id, data);

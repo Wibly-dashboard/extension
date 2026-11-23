@@ -217,6 +217,93 @@ export const findNearestFreePosition = ({
   return best;
 };
 
+type FindRandomFreePositionOptions = {
+  /** 놓으려는 위젯 크기 */
+  size: Size;
+  /** 위젯이 놓일 수 있는 최대 좌표 (컨테이너 크기 - 위젯 크기) */
+  max: Position;
+  /** 다른 위젯들의 사각형 */
+  others: Rect[];
+  gap: number;
+  /** 후보 좌표를 실제로 놓일 위치로 보정 (그리드 정렬 + 경계 안으로 제한) */
+  normalize: (position: Position) => Position;
+  /** 후보 좌표 간격. 그리드 정렬이 켜져 있으면 그리드 크기를 넘긴다 */
+  step: number;
+  /** 0 이상 1 미만의 난수 (테스트에서 고정값을 넣을 수 있도록 분리) */
+  random?: () => number;
+};
+
+/**
+ * 다른 위젯과 겹치지 않고 gap 간격을 지키는 빈자리 중 하나를 무작위로 고른다. 빈자리가 없으면 undefined.
+ *
+ * step 간격의 격자점을 normalize(그리드 정렬 + 경계 제한)로 보정한 위치를 후보로 쓰고,
+ * 격자점에 빈자리가 없으면 컨테이너 끝·다른 위젯 바로 옆(gap 간격) 좌표 조합에서 고른다.
+ */
+export const findRandomFreePosition = ({
+  size,
+  max,
+  others,
+  gap,
+  normalize,
+  step,
+  random = Math.random,
+}: FindRandomFreePositionOptions): Position | undefined => {
+  const isFree = (position: Position) => !others.some((other) => isColliding({ ...position, ...size }, other, gap));
+  const pick = (candidates: Position[]) =>
+    candidates.length > 0 ? candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))] : undefined;
+
+  const safeStep = Math.max(1, step);
+  const seen = new Set<string>();
+  const gridCandidates: Position[] = [];
+
+  // 끝 좌표(max)도 후보에 넣어 오른쪽·아래 끝에 붙는 자리도 고를 수 있게 한다
+  const axis = (limit: number) => {
+    const values: number[] = [];
+    for (let value = 0; value < limit; value += safeStep) values.push(value);
+    values.push(limit);
+    return values;
+  };
+
+  for (const x of axis(max.x)) {
+    for (const y of axis(max.y)) {
+      const candidate = normalize({ x, y });
+      const key = `${candidate.x},${candidate.y}`;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (isFree(candidate)) gridCandidates.push(candidate);
+    }
+  }
+
+  const fromGrid = pick(gridCandidates);
+  if (fromGrid) return fromGrid;
+
+  // 격자점에는 자리가 없지만 다른 위젯 바로 옆(정확히 gap 간격)에는 들어갈 수 있는 경우
+  const xs = new Set([0, max.x]);
+  const ys = new Set([0, max.y]);
+
+  for (const other of others) {
+    xs.add(other.x - size.width - gap);
+    xs.add(other.x + other.width + gap);
+    ys.add(other.y - size.height - gap);
+    ys.add(other.y + other.height + gap);
+  }
+
+  const exactCandidates: Position[] = [];
+
+  for (const x of xs) {
+    if (x < 0 || x > max.x) continue;
+
+    for (const y of ys) {
+      if (y < 0 || y > max.y) continue;
+      if (isFree({ x, y })) exactCandidates.push({ x, y });
+    }
+  }
+
+  return pick(exactCandidates);
+};
+
 export type PlacedWidget = { id: string; position: Position; size: Size };
 
 /**

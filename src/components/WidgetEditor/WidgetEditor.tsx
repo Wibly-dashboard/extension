@@ -1,19 +1,35 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { FaTimes, FaTrash } from "react-icons/fa";
+import { FaPlus, FaTimes, FaTrash } from "react-icons/fa";
 
 type WidgetEditorProps = {
   /** 편집 중인 위젯 이름 */
   name: string;
   /** 위젯별 편집 항목. 없으면 편집할 항목이 없다는 안내를 표시 */
   children?: ReactNode;
+  /** 닫기 (생성 모드에서는 추가하지 않고 취소) */
   onClose: () => void;
-  /** 위젯을 대시보드에서 삭제 */
-  onDelete: () => void;
-};
+} & (
+  | {
+      /** 대시보드에 놓인 위젯 편집 */
+      mode?: "edit";
+      /** 위젯을 대시보드에서 삭제 */
+      onDelete: () => void;
+    }
+  | {
+      /** 위젯 라이브러리에서 새 위젯을 추가하기 전에 옵션을 정한다 */
+      mode: "create";
+      /** 지금 옵션으로 위젯을 대시보드에 추가 */
+      onCreate: () => void;
+      /** 추가할 수 없는 이유 (예: 링크를 입력해 주세요). 있으면 추가 버튼이 비활성화된다 */
+      createError?: string | null;
+    }
+);
 
-export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditorProps) => {
+export const WidgetEditor = (props: WidgetEditorProps) => {
+  const { name, children, onClose } = props;
+  const isCreating = props.mode === "create";
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false); // 실수로 삭제하지 않도록 한 번 더 누르게 한다
 
   useEffect(() => {
@@ -41,7 +57,7 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-label={`${name} 편집`}
+        aria-label={`${name} ${isCreating ? "추가" : "편집"}`}
         className="glass flex max-h-full w-[480px] max-w-full flex-col overflow-hidden bg-neutral-900/60 text-white"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
@@ -51,12 +67,12 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
         {/* 헤더 섹션 */}
         <section className="flex shrink-0 items-center justify-between px-5 pt-5 md:px-7 md:pt-6">
           <div className="min-w-0">
-            <p className="text-xs text-white/60">위젯 편집</p>
+            <p className="text-xs text-white/60">{isCreating ? "위젯 추가" : "위젯 편집"}</p>
             <h2 className="truncate text-xl font-bold md:text-2xl">{name}</h2>
           </div>
           <button
             type="button"
-            aria-label="편집 창 닫기"
+            aria-label={isCreating ? "위젯 추가 취소" : "편집 창 닫기"}
             onClick={onClose}
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-white/70 transition-colors duration-200 hover:bg-white/15 hover:text-white"
           >
@@ -73,28 +89,52 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
           )}
         </section>
 
-        {/* 삭제 / 닫기 섹션 */}
+        {/* 생성 모드: 취소 / 추가, 편집 모드: 삭제 / 닫기 */}
         <section className="flex shrink-0 items-center justify-end gap-2 border-t border-white/15 px-5 py-4 md:px-7">
-          {isConfirmingDelete && <p className="mr-auto text-xs text-red-300">한 번 더 누르면 위젯이 삭제됩니다.</p>}
-          <button
-            type="button"
-            onClick={() => (isConfirmingDelete ? onDelete() : setIsConfirmingDelete(true))}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2.5 text-sm transition-colors duration-200 ${
-              isConfirmingDelete
-                ? "bg-red-500 font-semibold text-white hover:bg-red-400"
-                : "bg-red-400/15 text-red-200 hover:bg-red-400/25"
-            }`}
-          >
-            <FaTrash className="h-3 w-3" />
-            {isConfirmingDelete ? "삭제 확인" : "위젯 삭제"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-lg bg-white/15 px-4 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-white/25"
-          >
-            닫기
-          </button>
+          {props.mode === "create" ? (
+            <>
+              {props.createError && <p className="mr-auto text-xs text-red-300">{props.createError}</p>}
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-lg bg-white/15 px-4 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-white/25"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={!!props.createError}
+                onClick={props.onCreate}
+                className="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 disabled:text-white/50"
+              >
+                <FaPlus className="h-3 w-3" />
+                대시보드에 추가
+              </button>
+            </>
+          ) : (
+            <>
+              {isConfirmingDelete && <p className="mr-auto text-xs text-red-300">한 번 더 누르면 위젯이 삭제됩니다.</p>}
+              <button
+                type="button"
+                onClick={() => (isConfirmingDelete ? props.onDelete() : setIsConfirmingDelete(true))}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2.5 text-sm transition-colors duration-200 ${
+                  isConfirmingDelete
+                    ? "bg-red-500 font-semibold text-white hover:bg-red-400"
+                    : "bg-red-400/15 text-red-200 hover:bg-red-400/25"
+                }`}
+              >
+                <FaTrash className="h-3 w-3" />
+                {isConfirmingDelete ? "삭제 확인" : "위젯 삭제"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-lg bg-white/15 px-4 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-white/25"
+              >
+                닫기
+              </button>
+            </>
+          )}
         </section>
       </motion.div>
     </motion.div>,
