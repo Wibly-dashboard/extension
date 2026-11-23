@@ -6,11 +6,10 @@ import { BottomNavigator } from "./components/Footer/BottomNavigator";
 
 export const App = () => {
   useBlockZoom();
-  const { background, fontColor } = useSettings();
+  const { background } = useSettings();
 
   // 사용자가 고른 값은 CSS 변수로 넘기고, 실제 스타일은 Tailwind 클래스에서 변수를 참조한다
   const themeVariables = {
-    "--dashboard-font-color": fontColor,
     "--dashboard-bg-color": background.type === "color" ? background.value : "transparent",
     "--dashboard-bg-image":
       background.type === "color"

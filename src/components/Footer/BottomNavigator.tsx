@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { AnimatePresence, Reorder, motion } from "motion/react";
+import { useCallback, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
+import { AnimatePresence, Reorder, motion, useMotionValue, useTransform } from "motion/react";
 import { FaPlus } from "react-icons/fa";
 import { PiSquaresFourFill } from "react-icons/pi";
 import { navLinksStore, useNavLinks } from "../../hooks/useNavLinks";
@@ -54,6 +54,87 @@ const dragLinkAnimation = {
   cursor: "grabbing",
 };
 
+type DraggableLinkItemProps = {
+  link: NavLink;
+  delay: number;
+  groupRef: RefObject<HTMLUListElement | null>;
+  onPointerDownCapture: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  children: ReactNode;
+  // AnimatePresence(popLayout)가 사라지는 아이템의 위치를 재기 위해 넘겨주는 ref
+  ref?: Ref<HTMLLIElement>;
+};
+
+// 링크 영역 밖(바 바깥이나 고정 버튼 위)으로 끌고 나가지 못하도록 드래그 범위를 제한하는 링크 아이템.
+// motion의 dragConstraints(ref)는 드래그 시작 시 한 번만 측정되어, 드래그 중 순서가 바뀌면
+// 이전 자리 기준의 범위가 그대로 남아 영역 밖으로 빠져나갈 수 있다.
+// onDrag에서 제한하면 제한 전 위치가 한 프레임 그려져 잠깐 튀어나가 보이므로,
+// 드래그는 dragX에 그대로 기록하고 화면에는 현재 자리 기준으로 제한한 x만 그린다
+const DraggableLinkItem = ({
+  link,
+  delay,
+  groupRef,
+  onPointerDownCapture,
+  onDragStart,
+  onDragEnd,
+  children,
+  ref,
+}: DraggableLinkItemProps) => {
+  const itemRef = useRef<HTMLLIElement>(null);
+  const setItemRef = (node: HTMLLIElement | null) => {
+    itemRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  };
+  const dragX = useMotionValue(0);
+  const x = useTransform(dragX, (value) => {
+    const group = groupRef.current;
+    const item = itemRef.current;
+    if (!group || !item) return value;
+    // offsetLeft/offsetWidth는 transform이 적용되지 않은 현재 레이아웃 기준 값이다 (그룹이 offsetParent)
+    const min = -item.offsetLeft;
+    const max = group.clientWidth - item.offsetLeft - item.offsetWidth;
+    return Math.min(Math.max(value, min), max);
+  });
+  // 영역 밖까지 끌었다 놓으면 dragX는 멀리 나가 있어 제자리로 돌아오기 전에 가장자리에 잠시 멈춰 보인다.
+  // motion이 손을 뗄 때 복귀 애니메이션을 시작하기 전에(capture 단계) dragX를 화면 위치로 맞춘다
+  const syncDragXOnRelease = () => {
+    const sync = () => {
+      dragX.set(x.get());
+      window.removeEventListener("pointerup", sync, true);
+      window.removeEventListener("pointercancel", sync, true);
+    };
+    window.addEventListener("pointerup", sync, true);
+    window.addEventListener("pointercancel", sync, true);
+  };
+
+  return (
+    <Reorder.Item
+      ref={setItemRef}
+      value={link}
+      custom={delay}
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={{ layout: layoutTransition }}
+      whileDrag={dragLinkAnimation}
+      _dragX={dragX}
+      style={{ x }}
+      onPointerDownCapture={onPointerDownCapture}
+      onDragStart={() => {
+        syncDragXOnRelease();
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      className="relative"
+    >
+      {children}
+    </Reorder.Item>
+  );
+};
+
 export const BottomNavigator = () => {
   const { linkTarget } = useSettings();
   const links = useNavLinks(); // 설정 > 링크 탭에서 관리
@@ -64,7 +145,7 @@ export const BottomNavigator = () => {
   const displayedLinks = draggingLinks ?? links;
   // 드래그로 위치를 옮긴 직후에는 링크가 열리지 않도록 막는다
   const hasDraggedRef = useRef(false);
-  // 링크 영역 밖(바 바깥이나 고정 버튼 위)으로 끌고 나가지 못하도록 드래그 범위를 제한한다
+  // 링크 드래그 범위의 기준이 되는 영역
   const linkGroupRef = useRef<HTMLUListElement>(null);
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
   const [pressedLinkId, setPressedLinkId] = useState<string | null>(null);
@@ -89,22 +170,16 @@ export const BottomNavigator = () => {
           axis="x"
           values={displayedLinks}
           onReorder={setDraggingLinks}
-          className="flex gap-3"
+          // 링크가 하나도 없으면 빈 그룹이 gap을 차지해 왼쪽 여백이 커 보이므로 숨긴다 (마지막 링크의 exit 애니메이션이 끝난 뒤 비게 됨)
+          className="relative flex gap-3 empty:hidden"
         >
           <AnimatePresence mode="popLayout">
             {displayedLinks.map((link, index) => (
-              <Reorder.Item
+              <DraggableLinkItem
                 key={link.id}
-                value={link}
-                custom={initialLinkIds.has(link.id) ? index * STAGGER_DELAY : 0}
-                variants={itemVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                transition={{ layout: layoutTransition }}
-                whileDrag={dragLinkAnimation}
-                dragConstraints={linkGroupRef}
-                dragElastic={0}
+                link={link}
+                delay={initialLinkIds.has(link.id) ? index * STAGGER_DELAY : 0}
+                groupRef={linkGroupRef}
                 onPointerDownCapture={() => {
                   hasDraggedRef.current = false;
                 }}
@@ -116,7 +191,6 @@ export const BottomNavigator = () => {
                   if (draggingLinks) navLinksStore.set(draggingLinks);
                   setDraggingLinks(null);
                 }}
-                className="relative"
               >
                 <a
                   href={link.href}
@@ -154,7 +228,7 @@ export const BottomNavigator = () => {
                     }}
                   />
                 </a>
-              </Reorder.Item>
+              </DraggableLinkItem>
             ))}
           </AnimatePresence>
         </Reorder.Group>

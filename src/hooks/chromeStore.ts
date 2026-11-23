@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
+import { isExtensionStorage as hasChromeStorage } from "./storage";
 
 // 크롬 확장으로 실행 중이면 chrome.storage.local을, 개발 서버/Storybook처럼 chrome API가 없으면 localStorage를 사용한다.
 // chrome.storage.local은 확장 프로그램 페이지에서만 접근할 수 있어 웹 페이지 스크립트로부터 안전하고, 기기 간 동기화도 되지 않는다.
-const hasChromeStorage = () => typeof chrome !== "undefined" && !!chrome.storage?.local;
+// 캐시 대신 매번 저장소에서 직접 읽어, 다른 탭이 재발급한 토큰도 reload()로 확실히 가져온다.
 
 const readStorage = async (key: string): Promise<unknown> => {
   if (hasChromeStorage()) {

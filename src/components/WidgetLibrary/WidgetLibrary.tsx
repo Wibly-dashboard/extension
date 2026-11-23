@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { addWidget, removeWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
+import type { WidgetType } from "../../types/widget";
 import { WidgetCard } from "./WidgetCard";
-import { WIDGET_CATALOG } from "./widgetCatalog";
+import { WIDGET_CATALOG } from "../Widgets/widgetCatalog";
 
 type WidgetLibraryProps = {
   onClose: () => void;
@@ -33,10 +34,11 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  const addedTypes = new Set(addedWidgets.map((widget) => widget.type));
+  const addedCounts = new Map<WidgetType, number>();
+  for (const widget of addedWidgets) addedCounts.set(widget.type, (addedCounts.get(widget.type) ?? 0) + 1);
   const keyword = query.trim().toLowerCase();
   const visibleItems = WIDGET_CATALOG.filter((item) => {
-    const isAdded = addedTypes.has(item.type);
+    const isAdded = addedCounts.has(item.type);
 
     if (filter === "added" && !isAdded) return false;
     if (filter === "not-added" && isAdded) return false;
@@ -126,8 +128,9 @@ export const WidgetLibrary = ({ onClose }: WidgetLibraryProps) => {
                   icon={item.icon}
                   color={item.color}
                   background={item.background}
-                  isAdded={addedTypes.has(item.type)}
-                  onAdd={() => addWidget(item.type)}
+                  addedCount={addedCounts.get(item.type) ?? 0}
+                  allowMultiple={item.allowMultiple ?? false}
+                  onAdd={() => addWidget(item.type, item.allowMultiple)}
                   onRemove={() => removeWidget(item.type)}
                 />
               ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { FaTimes, FaTrash } from "react-icons/fa";
@@ -6,12 +6,14 @@ import { FaTimes, FaTrash } from "react-icons/fa";
 type WidgetEditorProps = {
   /** 편집 중인 위젯 이름 */
   name: string;
+  /** 위젯별 편집 항목. 없으면 편집할 항목이 없다는 안내를 표시 */
+  children?: ReactNode;
   onClose: () => void;
   /** 위젯을 대시보드에서 삭제 */
   onDelete: () => void;
 };
 
-export const WidgetEditor = ({ name, onClose, onDelete }: WidgetEditorProps) => {
+export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditorProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false); // 실수로 삭제하지 않도록 한 번 더 누르게 한다
 
   useEffect(() => {
@@ -64,9 +66,11 @@ export const WidgetEditor = ({ name, onClose, onDelete }: WidgetEditorProps) => 
 
         {/* 편집 항목 섹션 (위젯별 편집 항목은 여기에 추가) */}
         <section className="min-h-0 flex-1 overflow-y-auto px-7 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <p className="rounded-xl border border-white/15 bg-white/10 p-4 text-sm text-white/60">
-            이 위젯에서 편집할 수 있는 항목이 아직 없습니다.
-          </p>
+          {children ?? (
+            <p className="rounded-xl border border-white/15 bg-white/10 p-4 text-sm text-white/60">
+              이 위젯에서 편집할 수 있는 항목이 아직 없습니다.
+            </p>
+          )}
         </section>
 
         {/* 삭제 / 닫기 섹션 */}

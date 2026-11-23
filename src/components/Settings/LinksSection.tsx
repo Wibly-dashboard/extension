@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FaLink, FaPen, FaPlus, FaSpinner, FaTrash } from "react-icons/fa";
 import { findSiteIcon } from "../../hooks/siteIcon";
-import { normalizeUrl } from "../../hooks/useNavLinks";
+import { MAX_NAV_LINKS, normalizeUrl } from "../../hooks/useNavLinks";
 import type { NavLink } from "../../types/settings";
 
 type LinksSectionProps = {
@@ -187,10 +187,12 @@ const LinkForm = ({ draft, onChange, onSubmit, onCancel }: LinkFormProps) => {
 export const LinksSection = ({ links, onChange }: LinksSectionProps) => {
   const [draft, setDraft] = useState<Draft | null>(null);
   const isAdding = draft !== null && draft.id === null;
+  const isFull = links.length >= MAX_NAV_LINKS;
   const updateDraft = (update: (draft: Draft) => Draft) => setDraft((prev) => (prev ? update(prev) : prev));
 
   const saveDraft = () => {
     if (!draft) return;
+    if (draft.id === null && isFull) return;
 
     const next = { imageUrl: draft.imageUrl.trim(), href: normalizeUrl(draft.href) };
 
@@ -210,11 +212,16 @@ export const LinksSection = ({ links, onChange }: LinksSectionProps) => {
   return (
     <div className="pb-6">
       <div className="flex items-center justify-between gap-4 py-3">
-        <p className="text-xs text-white/60">하단 바에 표시되는 링크 아이콘입니다. 저장을 눌러야 반영됩니다.</p>
+        <div className="min-w-0">
+          <p className="text-xs text-white/60">하단 바에 표시되는 링크 아이콘입니다. 저장을 눌러야 반영됩니다.</p>
+          <p className={`text-xs mt-5 ${isFull ? "text-red-300" : "text-white/40"}`}>
+            {isFull && `링크는 최대 ${MAX_NAV_LINKS}개까지 추가할 수 있습니다.`}
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setDraft({ id: null, imageUrl: "", href: "" })}
-          disabled={isAdding}
+          disabled={isAdding || isFull}
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm text-white transition-colors duration-200 hover:bg-white/25 disabled:cursor-default disabled:opacity-40"
         >
           <FaPlus className="h-3 w-3" />

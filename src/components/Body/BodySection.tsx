@@ -3,20 +3,28 @@ import Draggable, { type DraggableData } from "react-draggable";
 import { AnimatePresence } from "motion/react";
 import { FaPen } from "react-icons/fa";
 import { useSettings } from "../../hooks/useSettings";
-import { deleteWidget, useAddedWidgets } from "../../hooks/useAddedWidgets";
-import { findCatalogItem } from "../WidgetLibrary/widgetCatalog";
+import { deleteWidget, updateWidgetOptions, useAddedWidgets } from "../../hooks/useAddedWidgets";
+import { createLocalStore } from "../../hooks/localStore";
+import { findCatalogItem } from "../Widgets/widgetCatalog";
+import type { WidgetCatalogItem, WidgetOptions } from "../../types/widget";
 import { WidgetEditor } from "../WidgetEditor/WidgetEditor";
-import { clampPosition, REFERENCE_SIZE, toPixel, toRatio, type Position, type Size } from "./position";
-
-type Rect = Position & {
-  width: number;
-  height: number;
-};
+import {
+  clampPosition,
+  findNearestFreePosition,
+  REFERENCE_SIZE,
+  toPixel,
+  toRatio,
+  type Position,
+  type Rect,
+  type Size,
+} from "./position";
 
 type Widget = {
   id: string;
   name: string; // 편집 창 등에 표시할 위젯 이름
   component: React.ReactNode;
+  options: WidgetOptions; // 편집 창에서 저장한 위젯 옵션
+  editor?: WidgetCatalogItem["editor"]; // 편집 창에 표시할 위젯별 편집 항목
   position: Position; // 컨테이너 대비 비율(0~1)로 저장되는 위치. 화면 크기가 바뀌어도 배치가 유지됨
 };
 
@@ -39,18 +47,17 @@ type LayoutOptions = {
 };
 
 const CENTER_SNAP_THRESHOLD = 15;
+const NEIGHBOR_SNAP_THRESHOLD = 20; // 다른 위젯 옆자리·화면 끝이 이 거리(px) 안이면 정확히 간격을 맞춰 붙인다
+const DRAG_CLICK_THRESHOLD = 3; // 이 거리(px) 이하로 움직이면 드래그가 아닌 클릭으로 본다
 // 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
 const STORAGE_KEY = "dashboard-widgets-v2";
 
-const readSavedPositions = (): Record<string, Position> => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+// 확장 프로그램에서는 chrome.storage.local, 개발 서버에서는 localStorage에 저장된다
+const positionsStore = createLocalStore<Record<string, Position>>(STORAGE_KEY, (saved) =>
+  saved && typeof saved === "object" ? (saved as Record<string, Position>) : {},
+);
 
-    return saved ? (JSON.parse(saved) as Record<string, Position>) : {};
-  } catch {
-    return {};
-  }
-};
+const readSavedPositions = () => positionsStore.get();
 
 const snapPosition = (value: number, size: number, containerLength: number, layout: LayoutOptions) => {
   // 스냅 위치 계산 (그리드 정렬이 꺼져 있으면 그대로 반환)
@@ -62,13 +69,6 @@ const snapPosition = (value: number, size: number, containerLength: number, layo
   const snappedCenter = origin + Math.round((center - origin) / layout.gridSize) * layout.gridSize;
 
   return Math.round(snappedCenter - size / 2);
-};
-
-const isColliding = (a: Rect, b: Rect, gap: number) => {
-  // 충돌 여부 확인
-  return (
-    a.x < b.x + b.width + gap && a.x + a.width > b.x - gap && a.y < b.y + b.height + gap && a.y + a.height > b.y - gap
-  );
 };
 
 const getMaxPosition = (
@@ -128,6 +128,8 @@ const WidgetItem = ({
   onEdit,
 }: WidgetItemProps) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<Position>({ x: 0, y: 0 }); // 드래그를 시작한 위치
+  const wasDraggedRef = useRef(false); // 직전 마우스 조작이 클릭이 아닌 드래그였는지 여부
 
   return (
     <Draggable
@@ -135,8 +137,18 @@ const WidgetItem = ({
       position={pixelPosition}
       bounds="parent"
       handle=".widget-drag-handle"
-      onStart={() => {
+      onStart={(_, data) => {
+        dragStartRef.current = { x: data.x, y: data.y };
+        wasDraggedRef.current = false;
         onStart(widget.id);
+      }}
+      onDrag={(_, data) => {
+        // 끝난 위치가 아니라 드래그 중 한 번이라도 멀리 움직였는지로 판단한다
+        // (멀리 끌었다가 제자리 근처에 놓아도 클릭으로 처리되어 링크가 열리지 않도록)
+        // 손떨림 정도의 작은 움직임은 클릭으로 취급
+        if (Math.hypot(data.x - dragStartRef.current.x, data.y - dragStartRef.current.y) > DRAG_CLICK_THRESHOLD) {
+          wasDraggedRef.current = true;
+        }
       }}
       onStop={(_, data) => {
         onStop(widget.id, data);
@@ -147,6 +159,14 @@ const WidgetItem = ({
         id={`widget-${widget.id}`}
         // will-change-transform: 위젯을 별도 합성 레이어로 올려 드래그 중 배경과 다른 위젯을 다시 그리지 않게 한다
         className={`absolute left-0 top-0 w-fit will-change-transform ${isDragging || isSelected ? "z-50" : "z-0"}`}
+        onClickCapture={(event) => {
+          // 드래그를 끝내며 마우스를 놓을 때 발생하는 클릭이 위젯 안의 링크·버튼으로 전달되지 않게 막는다
+          if (!wasDraggedRef.current) return;
+
+          wasDraggedRef.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onContextMenu={(event) => {
           // 브라우저 기본 메뉴 대신 위젯 선택
           event.preventDefault();
@@ -197,13 +217,16 @@ export const BodySection = () => {
       // 위젯 라이브러리에서 추가한 위젯만 표시하고, 사용자가 옮긴 위치가 있으면 그 위치를 사용
       addedWidgets.flatMap((added) => {
         const item = findCatalogItem(added.type);
+        const options = added.options ?? {};
 
         return item
           ? [
               {
                 id: added.id,
                 name: item.name,
-                component: item.render(),
+                component: item.render(options),
+                options,
+                editor: item.editor,
                 position: savedPositions[added.id] ?? added.position,
               },
             ]
@@ -235,40 +258,17 @@ export const BodySection = () => {
       });
     }
 
-    const width = node.offsetWidth;
-    const height = node.offsetHeight;
-    const isFree = (candidate: Position) => {
-      const rect: Rect = { ...candidate, width, height };
-
-      return !otherRects.some((otherRect) => isColliding(rect, otherRect, layout.widgetGap));
-    };
-
-    const desiredBounded = getBoundedPosition(desiredPosition, size, node, layout);
-    if (isFree(desiredBounded)) return desiredBounded;
-
-    // 컨테이너 안의 그리드 후보를 한 번 훑어 원래 위치에서 가장 가까운 빈 자리를 선택
-    const max = getMaxPosition(size, node);
-    let best: Position | undefined;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (let x = 0; x <= max.x; x += layout.gridSize) {
-      for (let y = 0; y <= max.y; y += layout.gridSize) {
-        const dx = x - desiredPosition.x;
-        const dy = y - desiredPosition.y;
-        const distance = dx * dx + dy * dy;
-
-        // 이미 찾은 후보보다 멀면 충돌 검사를 생략
-        if (distance >= bestDistance) continue;
-
-        const candidate = getBoundedPosition({ x, y }, size, node, layout);
-        if (!isFree(candidate)) continue;
-
-        best = candidate;
-        bestDistance = distance;
-      }
-    }
-
-    return best;
+    return findNearestFreePosition({
+      desired: desiredPosition,
+      size: { width: node.offsetWidth, height: node.offsetHeight },
+      max: getMaxPosition(size, node),
+      others: otherRects,
+      gap: layout.widgetGap,
+      normalize: (candidate) => getBoundedPosition(candidate, size, node, layout),
+      gridStep: layout.gridSnap ? layout.gridSize : undefined,
+      // 그리드 정렬 중에는 한 칸 안쪽이면 붙여야 그리드 때문에 벌어진 간격도 메워진다
+      snapThreshold: layout.gridSnap ? Math.max(NEIGHBOR_SNAP_THRESHOLD, layout.gridSize) : NEIGHBOR_SNAP_THRESHOLD,
+    });
   };
 
   const handleStop = (
@@ -338,10 +338,10 @@ export const BodySection = () => {
   const editingWidget = widgets.find((widget) => widget.id === editingId);
 
   useEffect(() => {
-    // 위젯 위치 변경 시 localStorage에 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
+    // 위젯 위치 변경 시 저장 (비율 값만 저장되므로 화면 크기 변화로 덮어써지지 않음)
     const positions = Object.fromEntries(widgets.map((widget) => [widget.id, widget.position]));
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+    positionsStore.set(positions);
   }, [widgets]);
 
   return (
@@ -376,7 +376,12 @@ export const BodySection = () => {
               deleteWidget(editingWidget.id);
               closeEditor();
             }}
-          />
+          >
+            {editingWidget.editor?.({
+              options: editingWidget.options,
+              onChange: (options) => updateWidgetOptions(editingWidget.id, options),
+            })}
+          </WidgetEditor>
         )}
       </AnimatePresence>
     </div>

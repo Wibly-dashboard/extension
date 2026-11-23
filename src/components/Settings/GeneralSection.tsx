@@ -3,7 +3,7 @@ import { FaUpload } from "react-icons/fa";
 import { GRID_SIZE_RANGE, WIDGET_GAP_RANGE } from "../../hooks/useSettings";
 import type { DashboardSettings, LinkTarget } from "../../types/settings";
 import { ColorPicker, Segmented, SettingRow, Slider, Toggle } from "./Controls";
-import { imageFileToDataUrl } from "./imageFile";
+import { IMAGE_FILE_ACCEPT, imageFileToDataUrl, UnsupportedImageTypeError } from "./imageFile";
 
 type GeneralSectionProps = {
   settings: DashboardSettings;
@@ -32,8 +32,12 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
     try {
       onChange({ background: { type: "image", value: await imageFileToDataUrl(file) } });
       setUploadError(null);
-    } catch {
-      setUploadError("이미지를 불러오지 못했습니다. 다른 파일을 선택해 주세요.");
+    } catch (error) {
+      setUploadError(
+        error instanceof UnsupportedImageTypeError
+          ? error.message
+          : "이미지를 불러오지 못했습니다. 다른 파일을 선택해 주세요.",
+      );
     }
   };
 
@@ -71,14 +75,6 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
         />
       </SettingRow>
 
-      <SettingRow
-        title="글자 색"
-        description="대시보드 글자 색을 지정합니다. 위젯에 따라 적용이 다를 수 있습니다."
-        stacked
-      >
-        <ColorPicker label="글자 색" value={settings.fontColor} onChange={(fontColor) => onChange({ fontColor })} />
-      </SettingRow>
-
       <SettingRow title="배경" description={BACKGROUND_LABEL[background.type]} stacked>
         <div className="flex flex-col gap-3">
           <ColorPicker
@@ -87,11 +83,11 @@ export const GeneralSection = ({ settings, onChange }: GeneralSectionProps) => {
             onChange={(value) => onChange({ background: { type: "color", value } })}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={IMAGE_FILE_ACCEPT}
               className="hidden"
               onChange={(event) => {
                 void handleFile(event.target.files?.[0]);
