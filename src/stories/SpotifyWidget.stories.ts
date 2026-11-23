@@ -23,7 +23,7 @@ const meta: Meta<typeof SpotifyPlayerView> = {
   },
   argTypes: {
     repeat: { control: "inline-radio", options: ["off", "context", "track"] },
-    backgroundStyle: { control: "inline-radio", options: ["glass", "ghost", "material"] },
+    backgroundStyle: { control: "inline-radio", options: ["glass", "ghost", "material", "variant"] },
     // 앨범 색상 오버레이는 material 스타일에서만 그려지므로, 그때만 컨트롤을 보여준다
     albumCoverColor: { control: "color", if: { arg: "backgroundStyle", eq: "material" } },
   },
