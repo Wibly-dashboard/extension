@@ -47,6 +47,7 @@ type LayoutOptions = {
 };
 
 const CENTER_SNAP_THRESHOLD = 15;
+const NEIGHBOR_SNAP_THRESHOLD = 20; // 다른 위젯 옆자리·화면 끝이 이 거리(px) 안이면 정확히 간격을 맞춰 붙인다
 const DRAG_CLICK_THRESHOLD = 3; // 이 거리(px) 이하로 움직이면 드래그가 아닌 클릭으로 본다
 // 비율 좌표를 저장하므로 이전 픽셀 형식(dashboard-widgets)과 섞이지 않도록 키를 분리
 const STORAGE_KEY = "dashboard-widgets-v2";
@@ -265,6 +266,8 @@ export const BodySection = () => {
       gap: layout.widgetGap,
       normalize: (candidate) => getBoundedPosition(candidate, size, node, layout),
       gridStep: layout.gridSnap ? layout.gridSize : undefined,
+      // 그리드 정렬 중에는 한 칸 안쪽이면 붙여야 그리드 때문에 벌어진 간격도 메워진다
+      snapThreshold: layout.gridSnap ? Math.max(NEIGHBOR_SNAP_THRESHOLD, layout.gridSize) : NEIGHBOR_SNAP_THRESHOLD,
     });
   };
 
