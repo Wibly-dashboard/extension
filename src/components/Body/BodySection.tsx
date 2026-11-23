@@ -428,20 +428,26 @@ export const BodySection = () => {
     }));
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // 드래그 가능한 영역의 크기 변경 시 현재 크기만 갱신 (저장된 위치는 그대로 유지)
     const container = containerRef.current;
 
     if (!container) return;
 
-    const observer = new ResizeObserver(() => {
+    const updateSize = () => {
       if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
 
       setContainerSize({
         width: container.clientWidth,
         height: container.clientHeight,
       });
-    });
+    };
+
+    // ResizeObserver는 화면을 그린 뒤에 처음 알려주므로, 첫 화면이 기준 크기(REFERENCE_SIZE)로 그려져
+    // 위젯이 영역 밖으로 넘쳐 스크롤바가 잠깐 생겼다 사라진다. 그리기 전에 실제 크기를 한 번 재 둔다
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
 
     observer.observe(container);
 
