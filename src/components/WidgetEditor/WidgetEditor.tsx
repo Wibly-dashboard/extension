@@ -28,7 +28,7 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
 
   return createPortal(
     <motion.div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-4 font-pretendard"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 p-3 font-pretendard md:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -49,10 +49,10 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
         {/* 헤더 섹션 */}
-        <section className="flex shrink-0 items-center justify-between px-7 pt-6">
+        <section className="flex shrink-0 items-center justify-between px-5 pt-5 md:px-7 md:pt-6">
           <div className="min-w-0">
             <p className="text-xs text-white/60">위젯 편집</p>
-            <h2 className="truncate text-2xl font-bold">{name}</h2>
+            <h2 className="truncate text-xl font-bold md:text-2xl">{name}</h2>
           </div>
           <button
             type="button"
@@ -65,7 +65,7 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
         </section>
 
         {/* 편집 항목 섹션 (위젯별 편집 항목은 여기에 추가) */}
-        <section className="min-h-0 flex-1 overflow-y-auto px-7 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section className="min-h-0 flex-1 overflow-y-auto px-5 md:px-7 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {children ?? (
             <p className="rounded-xl border border-white/15 bg-white/10 p-4 text-sm text-white/60">
               이 위젯에서 편집할 수 있는 항목이 아직 없습니다.
@@ -74,7 +74,7 @@ export const WidgetEditor = ({ name, children, onClose, onDelete }: WidgetEditor
         </section>
 
         {/* 삭제 / 닫기 섹션 */}
-        <section className="flex shrink-0 items-center justify-end gap-2 border-t border-white/15 px-7 py-4">
+        <section className="flex shrink-0 items-center justify-end gap-2 border-t border-white/15 px-5 py-4 md:px-7">
           {isConfirmingDelete && <p className="mr-auto text-xs text-red-300">한 번 더 누르면 위젯이 삭제됩니다.</p>}
           <button
             type="button"

@@ -1,8 +1,8 @@
 import type { AddedWidget, WidgetOptions, WidgetType } from "../types/widget";
 import { createLocalStore, useLocalStore } from "./localStore";
 
-// 새 위젯이 놓일 수 있는 비율 범위. 화면 밖으로 나가는 부분은 BodySection이 표시할 때 경계 안으로 보정한다
-const MAX_RANDOM_RATIO = 0.8;
+// 새 위젯이 놓일 수 있는 비율 범위. 위치는 움직일 수 있는 공간 대비 비율(0~1)이라 어느 값이든 화면 안에 놓인다 (position.ts의 toAnchorRatio)
+const MAX_RANDOM_RATIO = 1;
 
 const parseAddedWidgets = (saved: unknown): AddedWidget[] => (Array.isArray(saved) ? (saved as AddedWidget[]) : []);
 

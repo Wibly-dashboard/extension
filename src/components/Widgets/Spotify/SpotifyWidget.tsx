@@ -13,6 +13,7 @@ const backgroudStyles: Record<BackgroundStyle, string> = {
   ghost: "bg-transparent",
   // material은 배경 이미지(+앨범 색상 오버레이)를 MaterialBackground로 깐다
   material: "",
+  variant: "bg-[#212121] group-text-white",
 };
 
 /**
