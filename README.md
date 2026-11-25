@@ -14,6 +14,8 @@
 
 <h1 align="center">Wibly Dashboard</h1>
 
+<img src="./src/assets/imgs/demo_screenshot.jpg">
+
 <p align="center">
   <strong>필요한 정보를 한 화면에 모아 보고, 위젯을 원하는 위치에 자유롭게 배치하세요.</strong>
 </p>
