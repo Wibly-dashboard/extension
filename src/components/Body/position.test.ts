@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampPosition,
   findNearestFreePosition,
+  findRandomFreePosition,
   fromAnchorRatio,
   isColliding,
   REFERENCE_SIZE,
@@ -252,5 +253,66 @@ describe("resolveOverlaps", () => {
     rects.forEach((a, i) =>
       rects.slice(i + 1).forEach((b) => expect(isColliding(a, b, 10)).toBe(false)),
     );
+  });
+});
+
+describe("findRandomFreePosition", () => {
+  const size = { width: 100, height: 100 };
+  const container = { width: 500, height: 300 };
+  const max = { x: container.width - size.width, y: container.height - size.height };
+  const clamp = (position: Position) => clampPosition(position, max);
+
+  it("never picks a spot that collides with or is closer than gap to another widget", () => {
+    const others = [
+      { x: 0, y: 0, width: 200, height: 150 },
+      { x: 300, y: 0, width: 100, height: 100 },
+    ];
+
+    for (let i = 0; i < 50; i += 1) {
+      const result = findRandomFreePosition({ size, max, others, gap: 10, normalize: clamp, step: 10 });
+
+      expect(result).toBeDefined();
+      others.forEach((other) => expect(isColliding({ ...result!, ...size }, other, 10)).toBe(false));
+    }
+  });
+
+  it("only picks grid-normalized positions when there is room on the grid", () => {
+    const snapToGrid = (position: Position) => clamp({ x: Math.round(position.x / 50) * 50, y: Math.round(position.y / 50) * 50 });
+
+    for (let i = 0; i < 20; i += 1) {
+      const result = findRandomFreePosition({ size, max, others: [], gap: 10, normalize: snapToGrid, step: 50 });
+
+      expect(result!.x % 50).toBe(0);
+      expect(result!.y % 50).toBe(0);
+    }
+  });
+
+  it("uses the random source to choose among free spots", () => {
+    const first = findRandomFreePosition({ size, max, others: [], gap: 10, normalize: clamp, step: 100, random: () => 0 });
+    const last = findRandomFreePosition({ size, max, others: [], gap: 10, normalize: clamp, step: 100, random: () => 0.999 });
+
+    expect(first).toEqual({ x: 0, y: 0 });
+    expect(last).toEqual(max);
+  });
+
+  it("falls back to a spot exactly gap away from a neighbor when the grid has none", () => {
+    // 그리드(250 간격: x = 0, 250, 500)로는 어디에 놓아도 겹치지만, 왼쪽 위젯 바로 옆(gap 10)에는 자리가 있다
+    const wideMax = { x: 500, y: 0 };
+    const others = [
+      { x: 0, y: 0, width: 290, height: 100 },
+      { x: 450, y: 0, width: 150, height: 100 },
+    ];
+    const snapToGrid = (position: Position) =>
+      clampPosition({ x: Math.round(position.x / 250) * 250, y: Math.round(position.y / 250) * 250 }, wideMax);
+
+    const result = findRandomFreePosition({ size, max: wideMax, others, gap: 10, normalize: snapToGrid, step: 250, random: () => 0 });
+
+    expect(result).toEqual({ x: 300, y: 0 });
+  });
+
+  it("returns undefined when there is no free spot at all", () => {
+    const others = [{ x: 0, y: 0, width: 500, height: 300 }];
+
+    expect(findRandomFreePosition({ size, max, others, gap: 10, normalize: clamp, step: 10 })).toBeUndefined();
   });
 });
